@@ -1,3 +1,28 @@
+import matplotlib.pyplot as plt  # For visualization of optimization results
+def plot_optimization_history(result):
+    """
+    Visualizes the optimization process using matplotlib.
+    Plots:
+    - Score vs. Iteration (line chart)
+    - Best score progression (line chart)
+    """
+    scores = [score for _, score in result.evaluation_history]
+    best_scores = []
+    current_best = float('-inf')
+    for s in scores:
+        current_best = max(current_best, s)
+        best_scores.append(current_best)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(scores, label='Score per Iteration', marker='o')
+    plt.plot(best_scores, label='Best Score Progression', linestyle='--')
+    plt.xlabel('Iteration')
+    plt.ylabel('Score')
+    plt.title('Bayesian Optimization Progress')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 #!/usr/bin/env python3
 """
 Linux Kernel Optimization Framework - Bayesian Optimization
@@ -416,6 +441,26 @@ class BayesianOptimizer:
             convergence_reached=convergence_reached,
             optimization_time=optimization_time
         )
+    
+    def adaptive_optimize(self, objective_function, max_iterations=50, max_restarts=10, required_stable_runs=3, tolerance=1e-4):
+        stable_count = 0
+        previous_best = None
+        all_results = []
+        self.max_iterations = max_iterations
+        for _ in range(max_restarts):
+            result = self.optimize(objective_function)
+            all_results.append(result)
+            if previous_best and self.is_similar(result.best_parameters, previous_best, tolerance):
+                stable_count += 1
+            else:
+                stable_count = 1
+                previous_best = result.best_parameters
+            if stable_count >= required_stable_runs:
+                break
+        return result
+
+    def is_similar(self, params1, params2, tolerance):
+        return all(abs(params1[k] - params2[k]) < tolerance for k in params1)
 
     def get_posterior_statistics(self, test_points: Optional[List[Dict[str, float]]] = None) -> Dict:
         """

@@ -3,7 +3,7 @@ Test for BayesianOptimzation.py
 This script tests the BayesianOptimizer class with a mock objective function.
 """
 
-from BayesianOptimzation import BayesianOptimizer
+from src.BayesianOptimzation import BayesianOptimizer
 import random
 
 def mock_objective_function(params):

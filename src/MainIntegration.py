@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 
 # Import framework components
-from BayesianOptimzation import BayesianOptimizer, OptimizationResult
+from src.BayesianOptimzation import BayesianOptimizer, OptimizationResult
 from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult
 from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy, HybridOptimizationResult
 from PerformanceMonitor import PerformanceMonitor, PerformanceMetrics
