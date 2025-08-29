@@ -10,6 +10,8 @@ psutil>=5.8.0
 
 pathlib>=1.0.0
 
+matplotlib>=3.3.0
+
 # Optional dependencies for enhanced functionality
 # matplotlib>=3.3.0  # For plotting (optional)
 # scikit-learn>=1.0.0  # For additional ML algorithms (optional)

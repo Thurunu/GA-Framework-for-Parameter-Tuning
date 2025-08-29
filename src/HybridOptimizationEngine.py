@@ -13,7 +13,7 @@ from enum import Enum
 import copy
 
 # Import our optimization components
-from src.BayesianOptimzation import BayesianOptimizer, OptimizationResult
+from BayesianOptimzation import BayesianOptimizer, OptimizationResult
 from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
 from ProcessPriorityManager import ProcessPriorityManager, PriorityClass
 

@@ -1,28 +1,3 @@
-import matplotlib.pyplot as plt  # For visualization of optimization results
-def plot_optimization_history(result):
-    """
-    Visualizes the optimization process using matplotlib.
-    Plots:
-    - Score vs. Iteration (line chart)
-    - Best score progression (line chart)
-    """
-    scores = [score for _, score in result.evaluation_history]
-    best_scores = []
-    current_best = float('-inf')
-    for s in scores:
-        current_best = max(current_best, s)
-        best_scores.append(current_best)
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(scores, label='Score per Iteration', marker='o')
-    plt.plot(best_scores, label='Best Score Progression', linestyle='--')
-    plt.xlabel('Iteration')
-    plt.ylabel('Score')
-    plt.title('Bayesian Optimization Progress')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
 #!/usr/bin/env python3
 """
 Linux Kernel Optimization Framework - Bayesian Optimization

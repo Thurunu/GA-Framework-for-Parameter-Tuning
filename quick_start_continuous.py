@@ -29,8 +29,7 @@ def main():
     
     # Import continuous optimizer
     try:
-        from ContinuousOptimizer import ContinuousOptimizer
-        from ProcessWorkloadDetector import ProcessWorkloadDetector
+        from src.ContinuousOptimizer import ContinuousOptimizer
     except ImportError as e:
         print(f"❌ Import Error: {e}")
         print("Make sure all required files are in the current directory:")
@@ -44,7 +43,7 @@ def main():
             "GeneticAlgorithm.py"
         ]
         for file_name in required_files:
-            exists = "✅" if Path(file_name).exists() else "❌"
+            exists = "✅" if Path(f"src/{file_name}").exists() else "❌"
             print(f"  {exists} {file_name}")
         sys.exit(1)
     

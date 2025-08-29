@@ -9,9 +9,13 @@ import threading
 import json
 import sys
 import signal
+import os
 from typing import Dict, Optional
 from dataclasses import dataclass
 import queue
+
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ProcessWorkloadDetector import ProcessWorkloadDetector
 from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
