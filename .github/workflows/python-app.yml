@@ -39,6 +39,20 @@ jobs:
         severity: 'CRITICAL,HIGH,MEDIUM'
         vuln-type: 'os,library'
 
+    - name: read trivy report
+      run: |
+        if grep -q "CRITICAL\|HIGH" trivy-report.json; then
+          echo "Vulnerabilities found, creating github issue..."
+          gh issue create  \
+            --title "Trivy Scan: Vulnerabilities detected" \
+            --body "$(cat trivy-report.json)" \
+            --label "security" 
+        else
+          echo "No critical or high vulnerabilities found ✅"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     # - name: Set up Python 3.10
     #   uses: actions/setup-python@v3
     #   with:
