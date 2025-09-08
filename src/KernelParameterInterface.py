@@ -261,8 +261,8 @@ class KernelParameterInterface:
             # Check if running on Linux/Unix system
             if os.name == 'posix':
                 # Convert value to string
-                str_value = str(value)
-                
+                str_value = str(int(value))
+                print("------------------")
                 # Use sysctl to write parameter
                 result = subprocess.run(
                     ['sysctl', '-w', f'{param_name}={str_value}'],
