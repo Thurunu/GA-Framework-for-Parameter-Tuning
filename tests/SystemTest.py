@@ -15,7 +15,7 @@ def test_imports():
     
     try:
         print("  ✓ Importing BayesianOptimzation...")
-        from BayesianOptimzation import BayesianOptimizer, OptimizationResult
+        from src.BayesianOptimzation import BayesianOptimizer, OptimizationResult
         
         print("  ✓ Importing GeneticAlgorithm...")
         from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult
@@ -42,7 +42,7 @@ def test_bayesian_optimizer():
     print("\nTesting Bayesian Optimizer...")
     
     try:
-        from BayesianOptimzation import BayesianOptimizer
+        from src.BayesianOptimzation import BayesianOptimizer
         
         # Define simple parameter bounds
         parameter_bounds = {

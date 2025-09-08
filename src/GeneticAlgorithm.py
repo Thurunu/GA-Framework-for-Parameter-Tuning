@@ -37,7 +37,7 @@ class GeneticAlgorithm:
                  population_size: int = 50,
                  max_generations: int = 100,
                  mutation_rate: float = 0.1,
-                 crossover_rate: float = 0.8,
+                 crossover_rate: float = 0.7,
                  elitism_ratio: float = 0.1,
                  tournament_size: int = 3,
                  convergence_threshold: float = 1e-6,
@@ -203,10 +203,22 @@ class GeneticAlgorithm:
         if len(self.fitness_history) < self.convergence_patience:
             return False
         
-        recent_best = max(self.fitness_history[-self.convergence_patience:])
-        previous_best = max(self.fitness_history[-2*self.convergence_patience:-self.convergence_patience])
-        
+        recent_best = max(
+            self.fitness_history[
+                -self.convergence_patience:
+            ]
+        )
+    
+        prev_start = -2 * self.convergence_patience
+        prev_end = -self.convergence_patience
+        prev_slice = self.fitness_history[prev_start:prev_end]
+       
+        if len(prev_slice) == 0:
+            previous_best = recent_best
+        else:
+            previous_best = max(prev_slice)
         improvement = recent_best - previous_best
+        print("Imrpovment: ", improvement)
         
         if abs(improvement) < self.convergence_threshold:
             self.stagnation_count += 1

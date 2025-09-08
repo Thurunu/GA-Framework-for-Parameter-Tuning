@@ -9,9 +9,13 @@ import threading
 import json
 import sys
 import signal
+import os
 from typing import Dict, Optional
 from dataclasses import dataclass
 import queue
+
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ProcessWorkloadDetector import ProcessWorkloadDetector
 from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
@@ -120,7 +124,7 @@ class ContinuousOptimizer:
             parameter_bounds={
                 'vm.swappiness': (10, 80),
                 'vm.dirty_ratio': (10, 30),
-                'kernel.sched_min_granularity_ns': (5000000, 15000000)
+                'kernel.sched_cfs_bandwidth_slice_us': (5000000, 12000000)
             },
             strategy=OptimizationStrategy.ADAPTIVE,
             evaluation_budget=10,
