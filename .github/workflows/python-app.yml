@@ -67,7 +67,7 @@ jobs:
 
       - name: Super-linter
         uses: super-linter/super-linter@v8
-        continues-on-error: true
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check linter logs and create issue if errors
