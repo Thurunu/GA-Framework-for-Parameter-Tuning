@@ -1,0 +1,47 @@
+slide 1: Introduction (problem definition, solution)
+Linux is one of the most widely used operating systems in the industry. for examples Android Phones, Servers & Web, Cloud & Containers, Enterprise & Industry.
+One of the main reason, that Linux is selecting for vast domains that's because its customizability.
+So when we talk about customizability the main point we can show is its kernel.
+This Linux kernel isn't like other operating systems kernel, this kernel has one specialty and that is user can customize it any kind of way.
+So there are lot of Linux based operating systems and they differ from each other by making changes to this same kernel.
+
+So my question is can we use this kernel to optimize performance of our workloads.
+yes we can by changing a small value whole operating system changes it default way, for example lets assume we download a file, by changing few parameters we can increase its download speed.
+
+my solution for this performance optimization is proposing a lightweight Hybrid approach that can optimize kernel parameters dynamically
+
+Linux powers wide range of devices, and its backbone kernel can do lot of things to the system when compare to the other operating systems.
+Main thing is its parameters, we can change their value as we need so by default each parameter has a default value and its doesn't much 
+effect to our workloads but when we going further when we having specific workloads sometimes the default parameters not enough so we have t change
+
+slide 2: research overview
+so by keeping that on my mind I have conduct a systematic review of existing performance optimization techniques in Linux.
+so then I categorize them into several categories. 1. ML based methods, 2. Rule based methods, 3. Deep learning based methods
+then I find what are the drawbacks of those systems and then I look for methods that use Bayesian Optimization and Genetic Algorithm like algorithms to do optimization
+lastly I do is finding the key parameters that may effect on every workloads
+
+slide 3: key parameters
+so these are few of the important parameters I found 
+
+slide 4: methodology
+I follow the PRISMA methodology for this research
+fir I analyzed kernel performance under different workloads
+
+slide 5: experimental design
+based on the things I've explored I developed a prototype and these are the specs of the system I used.
+
+
+slide 6: results
+and these are the results I got, so you can see how QPS and the cache moves
+so basically I can achieve 15% performance gain by tuning parameters
+
+slide 7: discussion
+For these kind of research identifying parameters is one of the key challenge and 
+
+slide 8: conclusion
+
+slide 9: references
+
+slide 10: acknowledge
+
+slide 11: thank you
