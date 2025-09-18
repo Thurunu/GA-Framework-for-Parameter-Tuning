@@ -8,3 +8,6 @@ __pycache__/
 
 .\Updated_Research_Sections.md
 *.svg
+
+.idea/
+.vscode/
