@@ -70,16 +70,16 @@ jobs:
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check linter logs and create issue if errors
-        if: failure()
-        run: |
-          echo "Linting errors detected, creating issue..."
-          gh issue create \
-            --title "Linting Errors: Bash script issues detected" \
-            --body "Super-Linter found errors in Bash scripts. Please fix them.\n\nLogs:\n\`\`\`\n$(cat /tmp/linting.log || echo 'Check GitHub Actions logs for details')\n\`\`\`" \
-            --label "linting"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Check linter logs and create issue if errors
+      #   if: failure()
+      #   run: |
+      #     echo "Linting errors detected, creating issue..."
+      #     gh issue create \
+      #       --title "Linting Errors: Bash script issues detected" \
+      #       --body "Super-Linter found errors in Bash scripts. Please fix them.\n\nLogs:\n\`\`\`\n$(cat /tmp/linting.log || echo 'Check GitHub Actions logs for details')\n\`\`\`" \
+      #       --label "linting"
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Set up Python 3.10
       #   uses: actions/setup-python@v3

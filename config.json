@@ -1,7 +1,0 @@
-{
-    "parameter_bounds": {
-        "vm.swappiness": [0, 200],
-        "vm.dirty_ratio": [10, 90],
-        "vm.dirty_background_ratio": [5, 90]
-    }
-}
