@@ -175,6 +175,23 @@ try:
         print(f"    ✓ Safety settings")
     
     print()
+    
+    # Check short-lived process filtering
+    filter_rules = priority_manager.config.get('filter_rules', {})
+    min_age = filter_rules.get('min_process_age', None)
+    stability = filter_rules.get('stability_tracking', {})
+    
+    if min_age is not None:
+        print("  Short-lived process filtering:")
+        print(f"    ✓ Minimum process age: {min_age}s")
+        
+        if stability.get('enabled'):
+            print(f"    ✓ Stability tracking: {stability.get('required_observations')} observations")
+            print(f"    ✓ Observation window: {stability.get('observation_window')}s")
+        else:
+            print(f"    ⚠ Stability tracking: Disabled")
+    
+    print()
     print("✅ Process priorities test PASSED")
     print()
     

@@ -9,10 +9,12 @@ import logging
 import os
 import yaml
 import psutil
+import time
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from collections import defaultdict
 
 class PriorityClass(Enum):
     """Process priority classes for different workload types"""
@@ -56,6 +58,11 @@ class ProcessPriorityManager:
         # Track managed processes
         self.managed_processes: Dict[int, ProcessInfo] = {}
         self.original_priorities: Dict[int, int] = {}
+        
+        # Process stability tracking for filtering short-lived processes
+        # Format: {pid: {'first_seen': timestamp, 'count': observation_count}}
+        self.process_observations: Dict[int, Dict] = {}
+        self.last_cleanup_time = time.time()
     
     def _load_configuration(self, config_file: str = None) -> dict:
         """Load process priority configuration from YAML file"""
@@ -109,6 +116,73 @@ class ProcessPriorityManager:
             'filter_rules': {'exclude_pids': [0, 1, 2], 'exclude_prefixes': ['[', 'kthreadd']},
             'safety': {'dry_run': False}
         }
+    
+    def _cleanup_old_observations(self):
+        """Remove old process observations outside the tracking window"""
+        current_time = time.time()
+        
+        # Only cleanup periodically to avoid overhead
+        if current_time - self.last_cleanup_time < 60:  # Cleanup every 60 seconds
+            return
+        
+        stability_config = self.config.get('filter_rules', {}).get('stability_tracking', {})
+        observation_window = stability_config.get('observation_window', 30)
+        
+        # Remove observations older than the window
+        expired_pids = [
+            pid for pid, data in self.process_observations.items()
+            if current_time - data['first_seen'] > observation_window
+        ]
+        
+        for pid in expired_pids:
+            del self.process_observations[pid]
+        
+        self.last_cleanup_time = current_time
+    
+    def _should_adjust_process(self, pid: int, process_age: float) -> bool:
+        """
+        Determine if a process should have its priority adjusted based on:
+        1. Minimum process age (filter out very short-lived processes)
+        2. Stability tracking (require multiple observations before adjustment)
+        
+        Args:
+            pid: Process ID
+            process_age: Process uptime in seconds
+            
+        Returns:
+            True if process is eligible for priority adjustment
+        """
+        filter_rules = self.config.get('filter_rules', {})
+        
+        # Check minimum process age
+        min_age = filter_rules.get('min_process_age', 5.0)
+        if process_age < min_age:
+            return False
+        
+        # Check stability tracking
+        stability_config = filter_rules.get('stability_tracking', {})
+        if not stability_config.get('enabled', True):
+            return True  # Stability tracking disabled, process is eligible
+        
+        required_observations = stability_config.get('required_observations', 2)
+        current_time = time.time()
+        
+        # Track this observation
+        if pid not in self.process_observations:
+            self.process_observations[pid] = {
+                'first_seen': current_time,
+                'count': 1
+            }
+            return False  # First time seeing this process
+        else:
+            # Increment observation count
+            self.process_observations[pid]['count'] += 1
+            
+            # Check if we've seen it enough times
+            if self.process_observations[pid]['count'] >= required_observations:
+                return True
+            else:
+                return False
         
     def classify_process(self, process_name: str, cmdline: str) -> Tuple[str, PriorityClass]:
         """
@@ -187,6 +261,9 @@ class ProcessPriorityManager:
         """
         classified_processes: Dict[str, List[ProcessInfo]] = {}
         
+        # Cleanup old observations periodically
+        self._cleanup_old_observations()
+        
         # Get filter rules from configuration
         filter_rules = self.config.get('filter_rules', {})
         exclude_pids = filter_rules.get('exclude_pids', [0, 1, 2])
@@ -200,11 +277,24 @@ class ProcessPriorityManager:
                     name = process_info['name'] or 'unknown'
                     cmdline = process_info['cmdline'] or []
                     
-                    # Apply filter rules
+                    # Apply filter rules - exclude by PID
                     if pid in exclude_pids:
                         continue
                     
+                    # Apply filter rules - exclude by name prefix
                     if any(name.startswith(prefix) for prefix in exclude_prefixes):
+                        continue
+                    
+                    # Check process age and stability
+                    try:
+                        proc = psutil.Process(pid)
+                        process_age = time.time() - proc.create_time()
+                        
+                        # Skip short-lived or unstable processes
+                        if not self._should_adjust_process(pid, process_age):
+                            continue
+                            
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
                         continue
                     
                     # Get current priority
@@ -253,7 +343,9 @@ class ProcessPriorityManager:
             'processes_adjusted': 0,
             'high_priority_set': 0,
             'low_priority_set': 0,
-            'errors': 0
+            'errors': 0,
+            'short_lived_filtered': len([p for p in self.process_observations.values() if p['count'] < self.config.get('filter_rules', {}).get('stability_tracking', {}).get('required_observations', 2)]),
+            'processes_tracked': len(self.process_observations)
         }
         
         # Get configuration values

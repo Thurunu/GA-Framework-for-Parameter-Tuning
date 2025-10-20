@@ -15,68 +15,68 @@ priority_mappings:
     priority_class: HIGH  # -10
     patterns:
       - "mysqld"
-      - "postgres"
+      # - "postgres"
       - "redis"
-      - "mongodb"
+      # - "mongodb"
       - "sqlite"
       - "mariadb"
-      - "elasticsearch"
+      # - "elasticsearch"
       - "cassandra"
       - "memcached"
 
-  web_server:
-    description: "Web servers and application servers"
-    priority_class: HIGH  # -10
-    patterns:
-      - "nginx"
-      - "apache"
-      - "httpd"
-      - "gunicorn"
-      - "uwsgi"
-      - "tomcat"
-      - "node"
-      - "npm"
+  # web_server:
+  #   description: "Web servers and application servers"
+  #   priority_class: HIGH  # -10
+  #   patterns:
+  #     - "nginx"
+  #     - "apache"
+  #     - "httpd"
+  #     - "gunicorn"
+  #     - "uwsgi"
+  #     - "tomcat"
+  #     - "node"
+  #     - "npm"
 
   compute_intensive:
     description: "Compute-intensive applications and scientific computing"
     priority_class: NORMAL  # 0
     patterns:
       - "python.*numpy"
-      - "python.*scipy"
-      - "matlab"
-      - "R "
-      - "tensorflow"
-      - "pytorch"
-      - "octave"
-      - "mpirun"
+      # - "python.*scipy"
+      # - "matlab"
+      # - "R "
+      # - "tensorflow"
+      # - "pytorch"
+      # - "octave"
+      # - "mpirun"
 
-  background_tasks:
-    description: "Background maintenance and batch tasks"
-    priority_class: BACKGROUND  # 19
-    patterns:
-      - "cron"
-      - "rsync"
-      - "backup"
-      - "updatedb"
-      - "logrotate"
-      - "anacron"
-      - "sync"
-      - "tar"
-      - "gzip"
+  # background_tasks:
+  #   description: "Background maintenance and batch tasks"
+  #   priority_class: BACKGROUND  # 19
+  #   patterns:
+  #     - "cron"
+  #     - "rsync"
+  #     - "backup"
+  #     - "updatedb"
+  #     - "logrotate"
+  #     - "anacron"
+  #     - "sync"
+  #     - "tar"
+  #     - "gzip"
 
-  interactive:
-    description: "Interactive user applications"
-    priority_class: HIGH  # -10
-    patterns:
-      - "firefox"
-      - "chrome"
-      - "chromium"
-      - "vim"
-      - "emacs"
-      - "code"
-      - "atom"
-      - "sublime"
-      - "vscode"
+  # interactive:
+  #   description: "Interactive user applications"
+  #   priority_class: HIGH  # -10
+  #   patterns:
+  #     - "firefox"
+  #     - "chrome"
+  #     - "chromium"
+  #     - "vim"
+  #     - "emacs"
+  #     - "code"
+  #     - "atom"
+  #     - "sublime"
+  #     - "vscode"
 
   system_critical:
     description: "Critical system processes (handle with care!)"
@@ -89,28 +89,29 @@ priority_mappings:
       - "sshd"
       - "dbus"
 
-  media_processing:
-    description: "Media encoding and processing"
-    priority_class: LOW  # 10
-    patterns:
-      - "ffmpeg"
-      - "mencoder"
-      - "handbrake"
-      - "blender"
-      - "gimp"
+  # media_processing:
+  #   description: "Media encoding and processing"
+  #   priority_class: LOW  # 10
+  #   patterns:
+  #     - "ffmpeg"
+  #     - "mencoder"
+  #     - "handbrake"
+  #     - "blender"
+  #     - "gimp"
 
   compilation:
     description: "Software compilation and build processes"
     priority_class: LOW  # 10
     patterns:
-      - "gcc"
-      - "g++"
-      - "clang"
-      - "make"
-      - "cmake"
-      - "cargo"
-      - "rustc"
-      - "javac"
+      # - "gcc"
+      # - "g++"
+      # - "clang"
+      # - "make"
+      # - "cmake"
+      # - "cargo"
+      # - "rustc"
+      # - "javac"
+      - "python3"
 
 # Workload-specific priority boosts
 # When a specific workload is detected as dominant, these boosts apply
@@ -135,10 +136,23 @@ filter_rules:
     - "kworker"
   
   # Minimum CPU usage to consider for priority adjustment (percentage)
-  min_cpu_threshold: 0.5
+  min_cpu_threshold: 0.75
   
   # Minimum memory usage to consider (percentage)
-  min_memory_threshold: 0.1
+  min_memory_threshold: 0.75
+  
+  # Short-lived process filtering
+  # Prevents wasting resources on processes that start and stop quickly
+  min_process_age: 5.0  # Minimum process uptime in seconds before considering for adjustment
+  
+  # Process stability tracking
+  # Only adjust processes that appear consistently across multiple scans
+  stability_tracking:
+    enabled: true
+    required_observations: 2  # Number of scans a process must appear in before adjustment
+    observation_window: 30  # Time window in seconds to track process stability
+
+  
 
 # Safety settings
 safety:

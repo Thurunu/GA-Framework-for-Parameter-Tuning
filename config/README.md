@@ -331,13 +331,70 @@ my_custom_workload:
 - Regex patterns supported (e.g., `python.*numpy`)
 - First matching pattern determines workload classification
 
+### Short-Lived Process Filtering
+
+The system automatically filters out short-lived processes to avoid wasting resources:
+
+**Minimum Process Age**:
+```yaml
+filter_rules:
+  min_process_age: 5.0  # Only adjust processes running for 5+ seconds
+```
+
+**Stability Tracking**:
+```yaml
+filter_rules:
+  stability_tracking:
+    enabled: true
+    required_observations: 2  # Process must appear in 2+ scans
+    observation_window: 30    # 30-second tracking window
+```
+
+**How It Works**:
+1. Each process scan tracks when processes are first seen
+2. Processes must be observed multiple times before adjustment
+3. This prevents adjusting processes that start and stop quickly
+4. Old observations are cleaned up automatically to save memory
+
+**Configuration Examples**:
+
+*Strict filtering (fewer adjustments)*:
+```yaml
+filter_rules:
+  min_process_age: 10.0  # Process must run for 10+ seconds
+  stability_tracking:
+    enabled: true
+    required_observations: 3  # Must appear in 3 scans
+    observation_window: 60
+```
+
+*Lenient filtering (more adjustments)*:
+```yaml
+filter_rules:
+  min_process_age: 2.0  # Process must run for 2+ seconds
+  stability_tracking:
+    enabled: true
+    required_observations: 1  # Adjust after first observation
+    observation_window: 15
+```
+
+*Disable stability tracking*:
+```yaml
+filter_rules:
+  min_process_age: 5.0
+  stability_tracking:
+    enabled: false  # Only check process age
+```
+
 ### Priority Assignment Strategy
 
 1. **Process Scanning**: All processes are scanned and classified
-2. **Pattern Matching**: Each process is matched against workload patterns
-3. **Priority Assignment**: Matched processes get the workload's priority class
-4. **Focus Boost**: If a workload is dominant, its processes get additional boost
-5. **Safety Checks**: Critical processes and filter rules are respected
+2. **Age Check**: Processes must be running for minimum age (default 5 seconds)
+3. **Stability Check**: Processes must appear in multiple scans (default 2 observations)
+4. **Pattern Matching**: Each stable process is matched against workload patterns
+5. **Priority Assignment**: Matched processes get the workload's priority class
+6. **Focus Boost**: If a workload is dominant, its processes get additional boost
+7. **Safety Checks**: Critical processes and filter rules are respected
 
 ### Use Cases
 
