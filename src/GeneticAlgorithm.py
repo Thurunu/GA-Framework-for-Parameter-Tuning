@@ -42,6 +42,9 @@ class GeneticAlgorithm:
                  tournament_size: int = 3,
                  convergence_threshold: float = 1e-6,
                  convergence_patience: int = 10,
+                 adaptive_parameters: bool = False,
+                 local_search: bool = False,
+                 diversity_injection: bool = False,
                  random_seed: int = 42):
         """
         Initialize Genetic Algorithm
@@ -56,6 +59,9 @@ class GeneticAlgorithm:
             tournament_size: Size of tournament selection
             convergence_threshold: Convergence threshold
             convergence_patience: Generations to wait for improvement
+            adaptive_parameters: Enable adaptive mutation rate adjustment
+            local_search: Enable local search optimization on offspring
+            diversity_injection: Enable periodic diversity injection
             random_seed: Random seed for reproducibility
         """
         self.parameter_bounds = parameter_bounds
@@ -65,11 +71,17 @@ class GeneticAlgorithm:
         self.population_size = population_size
         self.max_generations = max_generations
         self.mutation_rate = mutation_rate
+        self.initial_mutation_rate = mutation_rate  # Store initial rate for adaptive mutation
         self.crossover_rate = crossover_rate
         self.elitism_ratio = elitism_ratio
         self.tournament_size = tournament_size
         self.convergence_threshold = convergence_threshold
         self.convergence_patience = convergence_patience
+        
+        # Advanced features
+        self.adaptive_parameters = adaptive_parameters
+        self.local_search = local_search
+        self.diversity_injection = diversity_injection
         
         # Set random seeds
         random.seed(random_seed)
