@@ -6,82 +6,83 @@ patterns:
     description: "Database servers and cache systems"
     process_patterns:
       - 'mysql.*'
-      - 'postgres.*'
-      - 'oracle.*'
-      - 'mongodb.*'
+      # - 'postgres.*'
+      # - 'oracle.*'
+      # - 'mongodb.*'
       - 'redis.*'
       - 'memcached.*'
       - 'cassandra.*'
       - 'sqlite.*'
       - 'mariadb.*'
-      - 'elasticsearch.*'
+      # - 'elasticsearch.*'
     
-  web_server:
-    description: "Web servers and application servers"
-    process_patterns:
-      - 'nginx.*'
-      - 'apache.*'
-      - 'httpd.*'
-      - 'lighttpd.*'
-      - 'tomcat.*'
-      - 'jetty.*'
-      - 'gunicorn.*'
-      - 'uwsgi.*'
-      - 'node.*'
-      - 'npm.*'
+  # web_server:
+  #   description: "Web servers and application servers"
+  #   process_patterns:
+  #     - 'nginx.*'
+  #     - 'apache.*'
+  #     - 'httpd.*'
+  #     - 'lighttpd.*'
+  #     - 'tomcat.*'
+  #     - 'jetty.*'
+  #     - 'gunicorn.*'
+  #     - 'uwsgi.*'
+  #     - 'node.*'
+  #     - 'npm.*'
     
-  hpc_compute:
-    description: "High-performance computing and scientific workloads"
-    process_patterns:
-      - 'matlab.*'
-      - 'python.*scipy.*'
-      - 'R.*'
-      - 'octave.*'
-      - 'mpirun.*'
-      - '.*scientific.*'
-      - '.*simulation.*'
-      - 'python.*numpy.*'
-      - 'tensorflow.*'
-      - 'pytorch.*'
+  # hpc_compute:
+  #   description: "High-performance computing and scientific workloads"
+  #   process_patterns:
+  #     - 'matlab.*'
+  #     - 'python.*scipy.*'
+  #     - 'R.*'
+  #     - 'octave.*'
+  #     - 'mpirun.*'
+  #     - '.*scientific.*'
+  #     - '.*simulation.*'
+  #     - 'python.*numpy.*'
+  #     - 'tensorflow.*'
+  #     - 'pytorch.*'
     
-  media_processing:
-    description: "Media encoding, decoding, and processing"
-    process_patterns:
-      - 'ffmpeg.*'
-      - 'mencoder.*'
-      - 'handbrake.*'
-      - 'blender.*'
-      - 'gimp.*'
-      - 'imagemagick.*'
-      - 'convert.*'
-      - 'vlc.*'
+  # media_processing:
+  #   description: "Media encoding, decoding, and processing"
+  #   process_patterns:
+  #     - 'ffmpeg.*'
+  #     - 'mencoder.*'
+  #     - 'handbrake.*'
+  #     - 'blender.*'
+  #     - 'gimp.*'
+  #     - 'imagemagick.*'
+  #     - 'convert.*'
+  #     - 'vlc.*'
     
   compilation:
     description: "Software compilation and build processes"
     process_patterns:
-      - 'gcc.*'
-      - 'g\+\+.*'
-      - 'clang.*'
-      - 'make.*'
-      - 'cmake.*'
-      - 'rustc.*'
-      - 'javac.*'
-      - 'dotnet.*'
-      - 'cargo.*'
-      - 'mvn.*'
-      - 'gradle.*'
+      # - 'gcc.*'
+      # - 'g\+\+.*'
+      # - 'clang.*'
+      # - 'make.*'
+      # - 'cmake.*'
+      # - 'rustc.*'
+      # - 'javac.*'
+      # - 'dotnet.*'
+      # - 'cargo.*'
+      # - 'mvn.*'
+      # - 'gradle.*'
+      - 'python3.*'
     
   io_intensive:
     description: "I/O heavy operations like backup and file operations"
     process_patterns:
-      - 'rsync.*'
-      - 'cp.*'
-      - 'tar.*'
-      - 'gzip.*'
-      - 'unzip.*'
-      - 'backup.*'
-      - 'sync.*'
-      - 'dd.*'
+      # - 'rsync.*'
+      # - 'cp.*'
+      # - 'tar.*'
+      # - 'gzip.*'
+      # - 'unzip.*'
+      # - 'backup.*'
+      # - 'sync.*'
+      # - 'dd.*'
       - 'find.*'
 
 # Fallback classification thresholds

@@ -8,7 +8,7 @@ parameters:
   vm.swappiness:
     default_value: 60
     min_value: 0
-    max_value: 100
+    max_value: 200
     description: "Controls swap usage tendency"
     subsystem: "memory"
     writable: true
