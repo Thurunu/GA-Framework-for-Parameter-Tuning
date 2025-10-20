@@ -8,6 +8,9 @@ scipy>=1.7.0
 # System monitoring
 psutil>=5.8.0
 
+# Configuration management
+PyYAML>=5.4.0
+
 pathlib>=1.0.0
 
 matplotlib>=3.3.0

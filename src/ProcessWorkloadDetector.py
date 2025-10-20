@@ -7,9 +7,11 @@ Monitors running processes and classifies workload types
 import psutil
 import time
 import threading
+import yaml
 from typing import Dict, List, Set, Optional
 from dataclasses import dataclass
 from collections import defaultdict, deque
+from pathlib import Path
 import re
 
 @dataclass
@@ -29,55 +31,84 @@ class ProcessInfo:
 class WorkloadClassifier:
     """Classifies processes into workload types"""
     
-    WORKLOAD_PATTERNS = {
-        'database': [
-            r'mysql.*', r'postgres.*', r'oracle.*', r'mongodb.*', 
-            r'redis.*', r'memcached.*', r'cassandra.*', r'sqlite.*',
-            r'mariadb.*', r'elasticsearch.*'
-        ],
-        'web_server': [
-            r'nginx.*', r'apache.*', r'httpd.*', r'lighttpd.*',
-            r'tomcat.*', r'jetty.*', r'gunicorn.*', r'uwsgi.*',
-            r'node.*', r'npm.*'
-        ],
-        'hpc_compute': [
-            r'matlab.*', r'python.*scipy.*', r'R.*', r'octave.*',
-            r'mpirun.*', r'.*scientific.*', r'.*simulation.*',
-            r'python.*numpy.*', r'tensorflow.*', r'pytorch.*'
-        ],
-        'media_processing': [
-            r'ffmpeg.*', r'mencoder.*', r'handbrake.*', r'blender.*',
-            r'gimp.*', r'imagemagick.*', r'convert.*', r'vlc.*'
-        ],
-        'compilation': [
-            r'gcc.*', r'g\+\+.*', r'clang.*', r'make.*', r'cmake.*',
-            r'rustc.*', r'javac.*', r'dotnet.*', r'cargo.*',
-            r'mvn.*', r'gradle.*'
-        ],
-        'io_intensive': [
-            r'rsync.*', r'cp.*', r'tar.*', r'gzip.*', r'unzip.*',
-            r'backup.*', r'sync.*', r'dd.*', r'find.*'
-        ]
-    }
+    def __init__(self, config_file: str = None):
+        """
+        Initialize workload classifier with patterns from YAML
+        
+        Args:
+            config_file: Path to workload patterns YAML file
+        """
+        self.workload_patterns = {}
+        self.fallback_thresholds = {}
+        self._load_patterns(config_file)
     
-    @classmethod
-    def classify_process(cls, proc_info: ProcessInfo) -> str:
+    def _load_patterns(self, config_file: str = None):
+        """Load workload patterns from YAML configuration file"""
+        if config_file is None:
+            # Default to config/workload_patterns.yml relative to project root
+            current_dir = Path(__file__).parent
+            config_file = current_dir.parent / "config" / "workload_patterns.yml"
+        
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            # Load patterns
+            for workload_name, workload_data in config['patterns'].items():
+                self.workload_patterns[workload_name] = workload_data['process_patterns']
+            
+            # Load fallback thresholds
+            self.fallback_thresholds = config.get('fallback_thresholds', {})
+            
+            print(f"Loaded {len(self.workload_patterns)} workload patterns")
+            
+        except FileNotFoundError:
+            print(f"Warning: Configuration file {config_file} not found. Using default patterns.")
+            self._load_default_patterns()
+        except Exception as e:
+            print(f"Error loading workload patterns: {e}")
+            print("Falling back to default patterns.")
+            self._load_default_patterns()
+    
+    def _load_default_patterns(self):
+        """Load default patterns as fallback"""
+        self.workload_patterns = {
+            'database': [r'mysql.*', r'postgres.*', r'mongodb.*', r'redis.*'],
+            'web_server': [r'nginx.*', r'apache.*', r'httpd.*', r'node.*'],
+            'general': [r'.*']
+        }
+        self.fallback_thresholds = {
+            'cpu_intensive': {'cpu_percent': 80},
+            'memory_intensive': {'memory_percent': 50},
+            'io_intensive': {'io_bytes_per_second': 1000000},
+            'network_intensive': {'connection_count': 10}
+        }
+    
+    def classify_process(self, proc_info: ProcessInfo) -> str:
         """Classify process based on name and command line"""
         full_cmd = f"{proc_info.name} {proc_info.cmdline}".lower()
         
-        for workload_type, patterns in cls.WORKLOAD_PATTERNS.items():
+        # Try pattern matching first
+        for workload_type, patterns in self.workload_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, full_cmd):
                     return workload_type
         
-        # Classify based on resource usage patterns
-        if proc_info.cpu_percent > 80:
+        # Fallback to resource-based classification
+        cpu_threshold = self.fallback_thresholds.get('cpu_intensive', {}).get('cpu_percent', 80)
+        if proc_info.cpu_percent > cpu_threshold:
             return 'cpu_intensive'
-        elif proc_info.memory_percent > 50:
+        
+        memory_threshold = self.fallback_thresholds.get('memory_intensive', {}).get('memory_percent', 50)
+        if proc_info.memory_percent > memory_threshold:
             return 'memory_intensive'
-        elif proc_info.io_read_bytes + proc_info.io_write_bytes > 1000000:  # 1MB/s
+        
+        io_threshold = self.fallback_thresholds.get('io_intensive', {}).get('io_bytes_per_second', 1000000)
+        if proc_info.io_read_bytes + proc_info.io_write_bytes > io_threshold:
             return 'io_intensive'
-        elif proc_info.network_connections > 10:
+        
+        network_threshold = self.fallback_thresholds.get('network_intensive', {}).get('connection_count', 10)
+        if proc_info.network_connections > network_threshold:
             return 'network_intensive'
         
         return 'general'
@@ -86,16 +117,21 @@ class ProcessWorkloadDetector:
     """Monitors system processes and detects workload changes"""
     
     def __init__(self, monitoring_interval: float = 2.0, 
-                 significance_threshold: float = 5.0):
+                 significance_threshold: float = 5.0,
+                 config_file: str = None):
         """
         Initialize process detector
         
         Args:
             monitoring_interval: How often to check processes (seconds)
             significance_threshold: CPU% threshold for significant processes
+            config_file: Path to workload patterns YAML file (optional)
         """
         self.monitoring_interval = monitoring_interval
         self.significance_threshold = significance_threshold
+        
+        # Initialize classifier with patterns from YAML
+        self.classifier = WorkloadClassifier(config_file)
         
         self.running = False
         self.monitor_thread = None
@@ -184,8 +220,8 @@ class ProcessWorkloadDetector:
                     start_time=proc_data['create_time']
                 )
                 
-                # Classify workload
-                proc_info.workload_type = WorkloadClassifier.classify_process(proc_info)
+                # Classify workload using instance method
+                proc_info.workload_type = self.classifier.classify_process(proc_info)
                 
                 new_processes[proc_info.pid] = proc_info
                 significant_processes.append(proc_info)

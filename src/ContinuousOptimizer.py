@@ -10,9 +10,11 @@ import json
 import sys
 import signal
 import os
+import yaml
 from typing import Dict, Optional
 from dataclasses import dataclass
 import queue
+from pathlib import Path
 
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -36,112 +38,75 @@ class OptimizationProfile:
 class ContinuousOptimizer:
     """Continuous optimization system that adapts to workload changes"""
     
-    # Predefined optimization profiles for different workload types
-    OPTIMIZATION_PROFILES = {
-        'database': OptimizationProfile(
-            workload_type='database',
-            parameter_bounds={
-                'vm.swappiness': (1, 30),
-                'vm.dirty_ratio': (5, 20),
-                'vm.dirty_background_ratio': (2, 10),
-                'kernel.sched_cfs_bandwidth_slice_us': (2000, 10000),  # EEVDF parameter
-                'kernel.sched_latency_ns': (1000000, 12000000),        # EEVDF parameter
-                'net.core.rmem_max': (65536, 16777216),
-                'net.core.wmem_max': (65536, 16777216)
-            },
-            strategy=OptimizationStrategy.BAYESIAN_ONLY,
-            evaluation_budget=15,  # Reduced for continuous operation
-            time_budget=180.0,     # 3 minutes
-            performance_weights={
-                'cpu_efficiency': 0.2,
-                'memory_efficiency': 0.3,
-                'io_throughput': 0.4,
-                'network_throughput': 0.1
-            }
-        ),
+    @staticmethod
+    def _load_optimization_profiles(config_file: str = None) -> Dict[str, OptimizationProfile]:
+        """Load optimization profiles from YAML configuration file"""
+        if config_file is None:
+            # Default to config/optimization_profiles.yml relative to project root
+            current_dir = Path(__file__).parent
+            config_file = current_dir.parent / "config" / "optimization_profiles.yml"
         
-        'web_server': OptimizationProfile(
-            workload_type='web_server',
-            parameter_bounds={
-                'vm.swappiness': (10, 60),
-                'net.core.rmem_max': (131072, 33554432),
-                'net.core.wmem_max': (131072, 33554432),
-                'net.core.netdev_max_backlog': (1000, 10000),
-                'kernel.sched_cfs_bandwidth_slice_us': (3000, 8000),   # EEVDF parameter
-                'kernel.sched_latency_ns': (2000000, 8000000)          # EEVDF parameter
-            },
-            strategy=OptimizationStrategy.ADAPTIVE,
-            evaluation_budget=12,
-            time_budget=150.0,
-            performance_weights={
-                'cpu_efficiency': 0.3,
-                'memory_efficiency': 0.2,
-                'io_throughput': 0.2,
-                'network_throughput': 0.3
-            }
-        ),
-        
-        'hpc_compute': OptimizationProfile(
-            workload_type='hpc_compute',
-            parameter_bounds={
-                'vm.swappiness': (1, 10),
-                'vm.dirty_ratio': (15, 40),
-                'kernel.sched_cfs_bandwidth_slice_us': (1000, 5000),   # EEVDF parameter
-                'kernel.sched_latency_ns': (1000000, 6000000),         # EEVDF parameter
-                'kernel.sched_rt_runtime_us': (800000, 980000)         # RT scheduler tuning
-            },
-            strategy=OptimizationStrategy.GENETIC_ONLY,
-            evaluation_budget=18,
-            time_budget=240.0,
-            performance_weights={
-                'cpu_efficiency': 0.5,
-                'memory_efficiency': 0.3,
-                'io_throughput': 0.1,
-                'network_throughput': 0.1
-            }
-        ),
-        
-        'io_intensive': OptimizationProfile(
-            workload_type='io_intensive',
-            parameter_bounds={
-                'vm.dirty_ratio': (5, 30), 
-                'vm.dirty_background_ratio': (2, 15),
-                'vm.vfs_cache_pressure': (50, 200)
-            },
-            strategy=OptimizationStrategy.BAYESIAN_ONLY,
-            evaluation_budget=10,
-            time_budget=120.0,
-            performance_weights={
-                'cpu_efficiency': 0.2,
-                'memory_efficiency': 0.2,
-                'io_throughput': 0.6,
-                'network_throughput': 0.0
-            }
-        ),
-        
-        'general': OptimizationProfile(
-            workload_type='general',
-            parameter_bounds={
-                'vm.swappiness': (10, 80),
-                'vm.dirty_ratio': (10, 30),
-                'kernel.sched_cfs_bandwidth_slice_us': (5000000, 12000000)
-            },
-            strategy=OptimizationStrategy.ADAPTIVE,
-            evaluation_budget=10,
-            time_budget=120.0,
-            performance_weights={
-                'cpu_efficiency': 0.25,
-                'memory_efficiency': 0.25,
-                'io_throughput': 0.25,
-                'network_throughput': 0.25
-            }
-        )
-    }
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            profiles = {}
+            for profile_name, profile_data in config['profiles'].items():
+                # Convert parameter bounds from lists to tuples
+                parameter_bounds = {
+                    param: tuple(bounds) 
+                    for param, bounds in profile_data['parameter_bounds'].items()
+                }
+                
+                # Convert strategy string to enum
+                strategy = OptimizationStrategy[profile_data['strategy']]
+                
+                profiles[profile_name] = OptimizationProfile(
+                    workload_type=profile_data['workload_type'],
+                    parameter_bounds=parameter_bounds,
+                    strategy=strategy,
+                    evaluation_budget=profile_data['evaluation_budget'],
+                    time_budget=profile_data['time_budget'],
+                    performance_weights=profile_data['performance_weights']
+                )
+            
+            return profiles
+            
+        except FileNotFoundError:
+            print(f"Warning: Configuration file {config_file} not found. Using default profiles.")
+            return ContinuousOptimizer._get_default_profiles()
+        except Exception as e:
+            print(f"Error loading optimization profiles: {e}")
+            print("Falling back to default profiles.")
+            return ContinuousOptimizer._get_default_profiles()
+    
+    @staticmethod
+    def _get_default_profiles() -> Dict[str, OptimizationProfile]:
+        """Get default optimization profiles as fallback"""
+        return {
+            'general': OptimizationProfile(
+                workload_type='general',
+                parameter_bounds={
+                    'vm.swappiness': (10, 80),
+                    'vm.dirty_ratio': (10, 30),
+                },
+                strategy=OptimizationStrategy.ADAPTIVE,
+                evaluation_budget=10,
+                time_budget=120.0,
+                performance_weights={
+                    'cpu_efficiency': 0.25,
+                    'memory_efficiency': 0.25,
+                    'io_throughput': 0.25,
+                    'network_throughput': 0.25
+                }
+            )
+        }
     
     def __init__(self, 
                  adaptation_delay: float = 30.0,
                  stability_period: float = 180.0,
-                 log_file: str = "/var/log/continuous_optimizer.log"):
+                 log_file: str = "/var/log/continuous_optimizer.log",
+                 config_file: str = None):
         """
         Initialize continuous optimizer
         
@@ -149,10 +114,15 @@ class ContinuousOptimizer:
             adaptation_delay: Wait time before optimizing after workload change
             stability_period: Minimum time between optimizations
             log_file: Log file path
+            config_file: Path to optimization profiles YAML file (optional)
         """
         self.adaptation_delay = adaptation_delay
         self.stability_period = stability_period
         self.log_file = log_file
+        
+        # Load optimization profiles from YAML
+        self.OPTIMIZATION_PROFILES = self._load_optimization_profiles(config_file)
+        print(f"Loaded {len(self.OPTIMIZATION_PROFILES)} optimization profiles")
         
         # Initialize components
         self.process_detector = ProcessWorkloadDetector()

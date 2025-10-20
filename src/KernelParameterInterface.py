@@ -8,6 +8,7 @@ import os
 import subprocess
 import json
 import time
+import yaml
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -29,13 +30,60 @@ class KernelParameter:
 class KernelParameterInterface:
     """Interface for managing Linux kernel parameters"""
     
-    def __init__(self, backup_dir: str = "/tmp/kernel_optimizer_backup"):
+    def __init__(self, backup_dir: str = "/tmp/kernel_optimizer_backup", config_file: str = None):
         self.backup_dir = Path(backup_dir)
         self.backup_dir.mkdir(exist_ok=True)
         
-        # Define key parameters for optimization based on your paper
-        self.optimization_parameters = {
-            # Memory Management Parameters
+        # Load kernel parameters from YAML configuration
+        self.optimization_parameters = self._load_parameters(config_file)
+        
+        # Setup logging first (before loading current values)
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        
+        # Load current values
+        self._load_current_values()
+    
+    def _load_parameters(self, config_file: str = None) -> Dict[str, KernelParameter]:
+        """Load kernel parameter definitions from YAML configuration file"""
+        if config_file is None:
+            # Default to config/kernel_parameters.yml relative to project root
+            current_dir = Path(__file__).parent
+            config_file = current_dir.parent / "config" / "kernel_parameters.yml"
+        
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            parameters = {}
+            for param_name, param_data in config['parameters'].items():
+                parameters[param_name] = KernelParameter(
+                    name=param_name,
+                    current_value=None,  # Will be loaded later
+                    default_value=param_data['default_value'],
+                    min_value=param_data.get('min_value'),
+                    max_value=param_data.get('max_value'),
+                    description=param_data.get('description', ''),
+                    subsystem=param_data.get('subsystem', ''),
+                    writable=param_data.get('writable', True),
+                    requires_reboot=param_data.get('requires_reboot', False)
+                )
+            
+            print(f"Loaded {len(parameters)} kernel parameters from configuration")
+            return parameters
+            
+        except FileNotFoundError:
+            print(f"Warning: Configuration file {config_file} not found. Using default parameters.")
+            return self._get_default_parameters()
+        except Exception as e:
+            print(f"Error loading kernel parameters: {e}")
+            print("Falling back to default parameters.")
+            return self._get_default_parameters()
+    
+    def _get_default_parameters(self) -> Dict[str, KernelParameter]:
+        """Get default kernel parameters as fallback"""
+        # Minimal fallback set of critical parameters
+        return {
             'vm.swappiness': KernelParameter(
                 name='vm.swappiness',
                 current_value=None,
@@ -53,147 +101,8 @@ class KernelParameterInterface:
                 max_value=90,
                 description='Percentage of memory that can be dirty before writeback',
                 subsystem='memory'
-            ),
-            'vm.dirty_background_ratio': KernelParameter(
-                name='vm.dirty_background_ratio',
-                current_value=None,
-                default_value=10,
-                min_value=1,
-                max_value=50,
-                description='Percentage for background writeback',
-                subsystem='memory'
-            ),
-            'vm.vfs_cache_pressure': KernelParameter(
-                name='vm.vfs_cache_pressure',
-                current_value=None,
-                default_value=100,
-                min_value=1,
-                max_value=1000,
-                description='Controls VFS cache reclaim pressure',
-                subsystem='memory'
-            ),
-            
-            # CPU Scheduling Parameters (EEVDF-compatible for kernel 6.6+)
-            'kernel.sched_cfs_bandwidth_slice_us': KernelParameter(
-                name='kernel.sched_cfs_bandwidth_slice_us',
-                current_value=None,
-                default_value=5000,      # 5ms
-                min_value=1000,          # 1ms
-                max_value=20000,         # 20ms
-                description='CFS bandwidth time slice in microseconds (EEVDF scheduler)',
-                subsystem='cpu'
-            ),
-            'kernel.sched_latency_ns': KernelParameter(
-                name='kernel.sched_latency_ns',
-                current_value=None,
-                default_value=6000000,   # 6ms
-                min_value=1000000,       # 1ms
-                max_value=50000000,      # 50ms
-                description='Target preemption latency for CPU-bound tasks',
-                subsystem='cpu'
-            ),
-            'kernel.sched_rt_period_us': KernelParameter(
-                name='kernel.sched_rt_period_us',
-                current_value=None,
-                default_value=1000000,   # 1 second
-                min_value=1,
-                max_value=10000000,      # 10 seconds
-                description='Period over which RT task bandwidth is measured',
-                subsystem='cpu'
-            ),
-            'kernel.sched_rt_runtime_us': KernelParameter(
-                name='kernel.sched_rt_runtime_us',
-                current_value=None,
-                default_value=950000,    # 950ms (95% of period)
-                min_value=0,
-                max_value=1000000,       # 1 second
-                description='Portion of period that RT tasks can use',
-                subsystem='cpu'
-            ),
-            
-            # Network Parameters
-            'net.core.rmem_max': KernelParameter(
-                name='net.core.rmem_max',
-                current_value=None,
-                default_value=212992,
-                min_value=8192,
-                max_value=134217728,     # 128MB
-                description='Maximum receive buffer size',
-                subsystem='network'
-            ),
-            'net.core.wmem_max': KernelParameter(
-                name='net.core.wmem_max',
-                current_value=None,
-                default_value=212992,
-                min_value=8192,
-                max_value=134217728,     # 128MB
-                description='Maximum send buffer size',
-                subsystem='network'
-            ),
-            'net.core.netdev_max_backlog': KernelParameter(
-                name='net.core.netdev_max_backlog',
-                current_value=None,
-                default_value=1000,
-                min_value=100,
-                max_value=10000,
-                description='Maximum packets in network device queue',
-                subsystem='network'
-            ),
-            'net.ipv4.tcp_rmem': KernelParameter(
-                name='net.ipv4.tcp_rmem',
-                current_value=None,
-                default_value='4096 87380 6291456',
-                min_value=None,
-                max_value=None,
-                description='TCP receive buffer sizes (min default max)',
-                subsystem='network'
-            ),
-            'net.ipv4.tcp_wmem': KernelParameter(
-                name='net.ipv4.tcp_wmem',
-                current_value=None,
-                default_value='4096 16384 4194304',
-                min_value=None,
-                max_value=None,
-                description='TCP send buffer sizes (min default max)',
-                subsystem='network'
-            ),
-            'net.ipv4.tcp_congestion_control': KernelParameter(
-                name='net.ipv4.tcp_congestion_control',
-                current_value=None,
-                default_value='cubic',
-                min_value=None,
-                max_value=None,
-                description='TCP congestion control algorithm',
-                subsystem='network'
-            ),
-            
-            # File System Parameters
-            'fs.file-max': KernelParameter(
-                name='fs.file-max',
-                current_value=None,
-                default_value=2097152,
-                min_value=1024,
-                max_value=10485760,
-                description='Maximum number of file handles',
-                subsystem='filesystem'
-            ),
-            'fs.nr_open': KernelParameter(
-                name='fs.nr_open',
-                current_value=None,
-                default_value=1048576,
-                min_value=1024,
-                max_value=10485760,
-                description='Maximum file descriptors per process',
-                subsystem='filesystem'
             )
         }
-        
-        # Setup logging first (before loading current values)
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger(__name__)
-        
-        # Load current values
-        self._load_current_values()
     
     def _load_current_values(self):
         """Load current kernel parameter values"""

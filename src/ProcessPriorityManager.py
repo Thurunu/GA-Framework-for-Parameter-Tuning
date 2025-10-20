@@ -7,10 +7,12 @@ Handles process nice values and priority adjustments for kernel 6.6+ systems
 import subprocess
 import logging
 import os
+import yaml
 import psutil
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 class PriorityClass(Enum):
     """Process priority classes for different workload types"""
@@ -35,7 +37,7 @@ class ProcessPriorityManager:
     Manages process priorities using nice/renice for EEVDF scheduler optimization
     """
     
-    def __init__(self, log_level=logging.INFO):
+    def __init__(self, log_level=logging.INFO, config_file: str = None):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         
@@ -47,43 +49,66 @@ class ProcessPriorityManager:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
         
-        # Process classification patterns
-        self.workload_patterns = {
-            'database': {
-                'patterns': ['mysqld', 'postgres', 'redis', 'mongodb', 'sqlite'],
-                'priority_class': PriorityClass.HIGH,
-                'description': 'Database servers'
-            },
-            'web_server': {
-                'patterns': ['nginx', 'apache', 'httpd', 'gunicorn', 'uwsgi'],
-                'priority_class': PriorityClass.HIGH,
-                'description': 'Web servers'
-            },
-            'compute_intensive': {
-                'patterns': ['python.*numpy', 'python.*scipy', 'matlab', 'R '],
-                'priority_class': PriorityClass.NORMAL,
-                'description': 'Compute-intensive applications'
-            },
-            'background_tasks': {
-                'patterns': ['cron', 'rsync', 'backup', 'updatedb', 'logrotate'],
-                'priority_class': PriorityClass.BACKGROUND,
-                'description': 'Background maintenance tasks'
-            },
-            'interactive': {
-                'patterns': ['firefox', 'chrome', 'vim', 'emacs', 'code'],
-                'priority_class': PriorityClass.HIGH,
-                'description': 'Interactive applications'
-            },
-            'system_critical': {
-                'patterns': ['systemd', 'kernel', 'init', 'ssh'],
-                'priority_class': PriorityClass.CRITICAL,
-                'description': 'Critical system processes'
-            }
-        }
+        # Load priority configuration from YAML
+        self.workload_patterns = {}
+        self.config = self._load_configuration(config_file)
         
         # Track managed processes
         self.managed_processes: Dict[int, ProcessInfo] = {}
         self.original_priorities: Dict[int, int] = {}
+    
+    def _load_configuration(self, config_file: str = None) -> dict:
+        """Load process priority configuration from YAML file"""
+        if config_file is None:
+            # Default to config/process_priorities.yml relative to project root
+            current_dir = Path(__file__).parent
+            config_file = current_dir.parent / "config" / "process_priorities.yml"
+        
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            # Parse priority mappings
+            for workload_name, workload_data in config['priority_mappings'].items():
+                priority_class_name = workload_data['priority_class']
+                priority_class = PriorityClass[priority_class_name]
+                
+                self.workload_patterns[workload_name] = {
+                    'patterns': workload_data['patterns'],
+                    'priority_class': priority_class,
+                    'description': workload_data['description']
+                }
+            
+            print(f"🔃 Loaded priority mappings for {len(self.workload_patterns)} workload types")
+            return config
+            
+        except FileNotFoundError:
+            print(f"⚠️ Warning: Configuration file {config_file} not found. Using default patterns.")
+            return self._get_default_configuration()
+        except Exception as e:
+            print(f"Error loading process priority configuration: {e}")
+            print("Falling back to default configuration.")
+            return self._get_default_configuration()
+    
+    def _get_default_configuration(self) -> dict:
+        """Get default priority configuration as fallback"""
+        self.workload_patterns = {
+            'database': {
+                'patterns': ['mysqld', 'postgres', 'redis'],
+                'priority_class': PriorityClass.HIGH,
+                'description': 'Database servers'
+            },
+            'web_server': {
+                'patterns': ['nginx', 'apache', 'httpd'],
+                'priority_class': PriorityClass.HIGH,
+                'description': 'Web servers'
+            }
+        }
+        return {
+            'workload_focus_boost': {'enabled': True, 'boost_amount': 5, 'max_priority': -20},
+            'filter_rules': {'exclude_pids': [0, 1, 2], 'exclude_prefixes': ['[', 'kthreadd']},
+            'safety': {'dry_run': False}
+        }
         
     def classify_process(self, process_name: str, cmdline: str) -> Tuple[str, PriorityClass]:
         """
@@ -162,6 +187,11 @@ class ProcessPriorityManager:
         """
         classified_processes: Dict[str, List[ProcessInfo]] = {}
         
+        # Get filter rules from configuration
+        filter_rules = self.config.get('filter_rules', {})
+        exclude_pids = filter_rules.get('exclude_pids', [0, 1, 2])
+        exclude_prefixes = filter_rules.get('exclude_prefixes', ['[', 'kthreadd', 'ksoftirqd'])
+        
         try:
             for process in psutil.process_iter(['pid', 'name', 'cmdline', 'cpu_percent', 'memory_percent']):
                 try:
@@ -170,8 +200,11 @@ class ProcessPriorityManager:
                     name = process_info['name'] or 'unknown'
                     cmdline = process_info['cmdline'] or []
                     
-                    # Skip kernel threads and system processes we shouldn't touch
-                    if pid <= 2 or name.startswith('[') or name in ['kthreadd', 'ksoftirqd']:
+                    # Apply filter rules
+                    if pid in exclude_pids:
+                        continue
+                    
+                    if any(name.startswith(prefix) for prefix in exclude_prefixes):
                         continue
                     
                     # Get current priority
@@ -223,6 +256,14 @@ class ProcessPriorityManager:
             'errors': 0
         }
         
+        # Get configuration values
+        boost_config = self.config.get('workload_focus_boost', {})
+        boost_enabled = boost_config.get('enabled', True)
+        boost_amount = boost_config.get('boost_amount', 5)
+        max_priority = boost_config.get('max_priority', -20)
+        
+        dry_run = self.config.get('safety', {}).get('dry_run', False)
+        
         classified_processes = self.scan_and_classify_processes()
         
         for workload_type, processes in classified_processes.items():
@@ -231,9 +272,9 @@ class ProcessPriorityManager:
                     # Determine target priority
                     target_nice = proc_info.target_nice
                     
-                    # Apply workload focus boost
-                    if workload_focus and workload_type == workload_focus:
-                        target_nice = max(target_nice - 5, -20)  # Boost priority
+                    # Apply workload focus boost if enabled
+                    if boost_enabled and workload_focus and workload_type == workload_focus:
+                        target_nice = max(target_nice - boost_amount, max_priority)  # Boost priority
                         self.logger.info(f"Boosting {workload_type} process {proc_info.name} (PID {proc_info.pid})")
                     
                     # Only adjust if different from current
