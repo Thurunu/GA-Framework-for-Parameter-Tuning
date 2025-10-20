@@ -105,9 +105,10 @@ def main():
             
             status = optimizer.get_status()
             
-            print(f"\n📋 Status Update #{status_counter}")
+            print(f"\n📋 Status Update #{status_counter}") 
             print(f"  Current workload: {status['current_workload']}")
-            print(f"  Active profile: {status['current_profile'] or 'None'}")
+            print(f"  Active profile: {status['active_profile']}")
+            print(f"  Last optimized profile: {status['last_optimized_profile'] or 'None'}")
             print(f"  Active processes: {status['active_processes']}")
             print(f"  Optimization in progress: {'Yes' if status['optimization_in_progress'] else 'No'}")
             print(f"  Queue size: {status['queue_size']}")

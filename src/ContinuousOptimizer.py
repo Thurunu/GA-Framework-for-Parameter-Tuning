@@ -104,7 +104,7 @@ class ContinuousOptimizer:
         'io_intensive': OptimizationProfile(
             workload_type='io_intensive',
             parameter_bounds={
-                'vm.dirty_ratio': (5, 30),
+                'vm.dirty_ratio': (5, 30), 
                 'vm.dirty_background_ratio': (2, 15),
                 'vm.vfs_cache_pressure': (50, 200)
             },
@@ -412,11 +412,16 @@ class ContinuousOptimizer:
         workload_info = self.process_detector.get_current_workload_info()
         current_params = self.kernel_interface.get_current_configuration()
         
+        # Determine the active profile based on current workload
+        detected_workload = workload_info['dominant_workload']
+        active_profile = detected_workload if detected_workload in self.OPTIMIZATION_PROFILES else 'general'
+        
         return {
             'running': self.running,
             'optimization_in_progress': self.optimization_in_progress,
-            'current_workload': workload_info['dominant_workload'],
-            'current_profile': self.current_profile.workload_type if self.current_profile else None,
+            'current_workload': detected_workload,
+            'active_profile': active_profile,  # Profile based on detected workload
+            'last_optimized_profile': self.current_profile.workload_type if self.current_profile else None,
             'last_optimization': self.last_optimization_time,
             'active_processes': workload_info['active_processes'],
             'current_parameters': current_params,
@@ -443,9 +448,10 @@ if __name__ == "__main__":
             time.sleep(60)  # Check status every minute
             
             status = optimizer.get_status()
-            print(f"\nStatus Update:")
+            print("\nStatus Update:")
             print(f"  Current workload: {status['current_workload']}")
-            print(f"  Optimization profile: {status['current_profile']}")
+            print(f"  Active profile: {status['active_profile']}")
+            print(f"  Last optimized profile: {status['last_optimized_profile']}")
             print(f"  Active processes: {status['active_processes']}")
             print(f"  Queue size: {status['queue_size']}")
             
