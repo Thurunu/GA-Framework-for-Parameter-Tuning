@@ -75,14 +75,7 @@ patterns:
   io_intensive:
     description: "I/O heavy operations like backup and file operations"
     process_patterns:
-      # - 'rsync.*'
-      # - 'cp.*'
-      # - 'tar.*'
-      # - 'gzip.*'
-      # - 'unzip.*'
-      # - 'backup.*'
-      # - 'sync.*'
-      # - 'dd.*'
+     
       - 'find.*'
 
 # Fallback classification thresholds

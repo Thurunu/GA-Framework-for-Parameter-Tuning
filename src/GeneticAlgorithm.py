@@ -250,14 +250,43 @@ class GeneticAlgorithm:
             "median": np.median(fitnesses)
         }
     
-    def optimize(self, objective_function: Callable[[Dict[str, float]], float]) -> GAOptimizationResult:
-        """Run the genetic algorithm optimization"""
+    def optimize(self, objective_function: Callable[[Dict[str, float]], float], 
+                 use_advanced_features: bool = None) -> GAOptimizationResult:
+        """
+        Run genetic algorithm optimization with optional advanced features
+        
+        Args:
+            objective_function: Function to maximize (higher is better)
+            use_advanced_features: Enable adaptive parameters, local search, diversity injection.
+                                   If None, auto-detect based on instance settings.
+        
+        Returns:
+            GAOptimizationResult with optimization results
+        """
         start_time = time.time()
         
-        print(f"Starting Genetic Algorithm with {self.max_generations} generations...")
-        print(f"Population size: {self.population_size}")
-        print(f"Mutation rate: {self.mutation_rate}")
-        print(f"Crossover rate: {self.crossover_rate}")
+        # Auto-detect if we should use advanced features
+        if use_advanced_features is None:
+            use_advanced_features = (
+                self.adaptive_parameters or 
+                self.local_search or 
+                self.diversity_injection
+            )
+        
+        # Print configuration
+        if use_advanced_features:
+            print(f"Starting Advanced Genetic Algorithm with {self.max_generations} generations...")
+            if self.adaptive_parameters:
+                print(f"  • Adaptive mutation enabled")
+            if self.local_search:
+                print(f"  • Local search enabled (10% chance)")
+            if self.diversity_injection:
+                print(f"  • Diversity injection enabled (every 20 generations)")
+        else:
+            print(f"Starting Genetic Algorithm with {self.max_generations} generations...")
+            print(f"Population size: {self.population_size}")
+            print(f"Mutation rate: {self.mutation_rate}")
+            print(f"Crossover rate: {self.crossover_rate}")
         
         # Initialize population
         self._initialize_population()
@@ -267,6 +296,10 @@ class GeneticAlgorithm:
         # Evolution loop
         for generation in range(self.max_generations):
             self.generation_count = generation + 1
+            
+            # Adaptive parameters (advanced feature)
+            if use_advanced_features and self.adaptive_parameters:
+                self.adaptive_mutation(generation)
             
             # Create next generation
             new_population = []
@@ -280,11 +313,19 @@ class GeneticAlgorithm:
                 child1 = self._mutate(child1)
                 child2 = self._mutate(child2)
                 
+                # Apply local search to some offspring (advanced feature)
+                if use_advanced_features and self.local_search and random.random() < 0.1:  # 10% chance
+                    child1 = self._local_search_optimization(child1, objective_function)
+                
                 new_population.extend([child1, child2])
             
             # Combine with current population for survival selection
             combined_population = self.population + new_population
             self.population = self._select_survivors(combined_population, objective_function)
+            
+            # Diversity injection (advanced feature)
+            if use_advanced_features and self.diversity_injection and generation % 20 == 0:
+                self.inject_diversity()
             
             # Update tracking
             self._update_best()
@@ -293,10 +334,20 @@ class GeneticAlgorithm:
             
             # Print progress
             stats = self._get_population_statistics()
-            print(f"Generation {generation + 1}: "
-                  f"Best = {self.best_fitness:.6f}, "
-                  f"Mean = {stats['mean']:.6f}, "
-                  f"Std = {stats['std']:.6f}")
+            if use_advanced_features:
+                # Print with advanced metrics
+                diversity = self.get_diversity_metrics()
+                print(f"Generation {generation + 1}: "
+                      f"Best = {self.best_fitness:.6f}, "
+                      f"Mean = {stats['mean']:.6f}, "
+                      f"Diversity = {diversity['overall_diversity']:.4f}, "
+                      f"MutRate = {self.mutation_rate:.4f}")
+            else:
+                # Print basic metrics
+                print(f"Generation {generation + 1}: "
+                      f"Best = {self.best_fitness:.6f}, "
+                      f"Mean = {stats['mean']:.6f}, "
+                      f"Std = {stats['std']:.6f}")
             
             # Check convergence
             if self._check_convergence():
@@ -435,87 +486,6 @@ class AdvancedGeneticAlgorithm(GeneticAlgorithm):
                         best_individual = Individual(parameters=test_params, fitness=test_fitness)
         
         return best_individual
-    
-    def optimize(self, objective_function: Callable[[Dict[str, float]], float]) -> GAOptimizationResult:
-        """Enhanced optimization with adaptive features"""
-        start_time = time.time()
-        
-        print(f"Starting Advanced Genetic Algorithm with {self.max_generations} generations...")
-        
-        # Initialize population
-        self._initialize_population()
-        self._evaluate_population(objective_function)
-        self._update_best()
-        
-        # Evolution loop with enhancements
-        for generation in range(self.max_generations):
-            self.generation_count = generation + 1
-            
-            # Adaptive parameters
-            if self.adaptive_parameters:
-                self.adaptive_mutation(generation)
-            
-            # Create next generation
-            new_population = []
-            
-            # Generate offspring
-            while len(new_population) < self.population_size - self.elite_size:
-                parent1 = self._tournament_selection()
-                parent2 = self._tournament_selection()
-                
-                child1, child2 = self._crossover(parent1, parent2)
-                child1 = self._mutate(child1)
-                child2 = self._mutate(child2)
-                
-                # Apply local search to some offspring
-                if self.local_search and random.random() < 0.1:  # 10% chance
-                    child1 = self._local_search_optimization(child1, objective_function)
-                
-                new_population.extend([child1, child2])
-            
-            # Combine with current population for survival selection
-            combined_population = self.population + new_population
-            self.population = self._select_survivors(combined_population, objective_function)
-            
-            # Diversity injection
-            if self.diversity_injection and generation % 20 == 0:
-                self.inject_diversity()
-            
-            # Update tracking
-            self._update_best()
-            self.fitness_history.append(self.best_fitness)
-            self.population_history.append([copy.deepcopy(ind) for ind in self.population])
-            
-            # Print progress with additional info
-            stats = self._get_population_statistics()
-            diversity = self.get_diversity_metrics()
-            print(f"Generation {generation + 1}: "
-                  f"Best = {self.best_fitness:.6f}, "
-                  f"Mean = {stats['mean']:.6f}, "
-                  f"Diversity = {diversity['overall_diversity']:.4f}, "
-                  f"MutRate = {self.mutation_rate:.4f}")
-            
-            # Check convergence
-            if self._check_convergence():
-                print(f"Convergence reached at generation {generation + 1}")
-                break
-        
-        optimization_time = time.time() - start_time
-        convergence_reached = self.stagnation_count >= self.convergence_patience
-        
-        print(f"Optimization completed in {optimization_time:.2f} seconds")
-        print(f"Best fitness: {self.best_fitness:.6f}")
-        print(f"Best parameters: {self.best_individual.parameters if self.best_individual else None}")
-        
-        return GAOptimizationResult(
-            best_individual=self.best_individual,
-            best_fitness=self.best_fitness,
-            generation_count=self.generation_count,
-            population_history=self.population_history,
-            fitness_history=self.fitness_history,
-            convergence_reached=convergence_reached,
-            optimization_time=optimization_time
-        )
 
 # Example usage and testing
 if __name__ == "__main__":

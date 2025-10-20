@@ -18,16 +18,16 @@ def test_imports():
         from src.BayesianOptimzation import BayesianOptimizer, OptimizationResult
         
         print("  ✓ Importing GeneticAlgorithm...")
-        from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult
+        from src.GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult
         
         print("  ✓ Importing HybridOptimizationEngine...")
-        from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
+        from src.HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
         
         print("  ✓ Importing PerformanceMonitor...")
-        from PerformanceMonitor import PerformanceMonitor
+        from src.PerformanceMonitor import PerformanceMonitor
         
         print("  ✓ Importing KernelParameterInterface...")
-        from KernelParameterInterface import KernelParameterInterface
+        from src.KernelParameterInterface import KernelParameterInterface
         
         print("  ✓ All imports successful!")
         return True
@@ -80,7 +80,7 @@ def test_genetic_algorithm():
     print("\nTesting Genetic Algorithm...")
     
     try:
-        from GeneticAlgorithm import GeneticAlgorithm
+        from src.GeneticAlgorithm import GeneticAlgorithm
         
         # Define simple parameter bounds
         parameter_bounds = {
@@ -118,7 +118,7 @@ def test_hybrid_optimization():
     print("\nTesting Hybrid Optimization Engine...")
     
     try:
-        from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
+        from src.HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
         
         # Define simple parameter bounds
         parameter_bounds = {
@@ -158,7 +158,7 @@ def test_performance_monitor():
     print("\nTesting Performance Monitor...")
     
     try:
-        from PerformanceMonitor import PerformanceMonitor
+        from src.PerformanceMonitor import PerformanceMonitor
         import time
         
         # Initialize monitor
@@ -192,7 +192,7 @@ def test_kernel_interface():
     print("\nTesting Kernel Parameter Interface...")
     
     try:
-        from KernelParameterInterface import KernelParameterInterface
+        from src.KernelParameterInterface import KernelParameterInterface
         
         # Initialize interface
         interface = KernelParameterInterface()

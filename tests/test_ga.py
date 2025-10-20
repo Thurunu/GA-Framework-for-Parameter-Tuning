@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from GeneticAlgorithm import GeneticAlgorithm
+from src.GeneticAlgorithm import GeneticAlgorithm
 import numpy as np
 
 def simple_objective_function(params):

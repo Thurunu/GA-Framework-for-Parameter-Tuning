@@ -11,7 +11,7 @@ def test_kernel_interface():
     print("Testing Kernel Parameter Interface...")
     
     try:
-        from KernelParameterInterface import KernelParameterInterface
+        from src.KernelParameterInterface import KernelParameterInterface
         
         # Initialize interface with error handling
         print("  ✓ Initializing KernelParameterInterface...")
