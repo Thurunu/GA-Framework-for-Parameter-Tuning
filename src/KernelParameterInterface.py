@@ -249,7 +249,10 @@ class KernelParameterInterface:
                         param.current_value = value
                 else:
                     results[param_name] = False
-                    self.logger.warning("Invalid value %s for parameter %s", value, param_name)
+                    self.logger.warning(
+                        "Invalid value %s for parameter %s (valid range: %s to %s)",
+                        value, param_name, param.min_value, param.max_value
+                    )
             else:
                 results[param_name] = False
                 self.logger.warning("Unknown parameter: %s", param_name)

@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - development
+    paths:
+      - 'scripts/**'
+      - 'docker/**'
+      - '.github/workflows/deploy-aws.yml'
   workflow_dispatch:
 
 env:
