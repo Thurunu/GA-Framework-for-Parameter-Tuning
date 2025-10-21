@@ -3,10 +3,18 @@ name: Deploy Application to AWS EC2 and setup other tools
 on:
   push:
     branches:
+      - main
       - development
   pull_request:
     branches:
       - main
+
+env:
+  AWS_REGION: ap-south-1  # Match your Terraform region
+  EC2_USER: ubuntu
+  APP_DIR: /home/ubuntu/ga-framework
+  TF_DIR: ./infrastructure
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -14,5 +22,274 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+          terraform_wrapper: false
+
+      - name: Get Terraform Outputs (EC2 IPs)
+        id: terraform
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init
+          
+          # Get all instance IPs from Terraform outputs
+          PUBLIC_IP=$(terraform output -raw public_instance_ip)
+          PRIVATE_1_IP=$(terraform output -raw private_instance_public_ip)
+          PRIVATE_2_IP=$(terraform output -raw private_instance_2_public_ip)
+          
+          echo "public_instance_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+          echo "private_instance_1_ip=$PRIVATE_1_IP" >> $GITHUB_OUTPUT
+          echo "private_instance_2_ip=$PRIVATE_2_IP" >> $GITHUB_OUTPUT
+          
+          echo "✅ Retrieved EC2 IPs from Terraform:"
+          echo "  - Public Instance: $PUBLIC_IP"
+          echo "  - Private Instance 1: $PRIVATE_1_IP"
+          echo "  - Private Instance 2: $PRIVATE_2_IP"
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
+          chmod 600 ~/.ssh/deploy_key.pem
+          
+          # Add all instances to known_hosts
+          ssh-keyscan -H ${{ steps.terraform.outputs.public_instance_ip }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ steps.terraform.outputs.private_instance_1_ip }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ steps.terraform.outputs.private_instance_2_ip }} >> ~/.ssh/known_hosts
+          
+          echo "✅ SSH keys configured for all instances"
+
+      - name: Test SSH connection to all instances
+        run: |
+          echo "Testing connection to Public Instance..."
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ steps.terraform.outputs.public_instance_ip }} "echo '✅ Public Instance: SSH connection successful'"
+          
+          echo "Testing connection to Private Instance 1..."
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ steps.terraform.outputs.private_instance_1_ip }} "echo '✅ Private Instance 1: SSH connection successful'"
+          
+          echo "Testing connection to Private Instance 2..."
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ steps.terraform.outputs.private_instance_2_ip }} "echo '✅ Private Instance 2: SSH connection successful'"
+
+      - name: Deploy to Private Instance 2
+        run: |
+          INSTANCE_IP="${{ steps.terraform.outputs.private_instance_2_ip }}"
+          echo "🚀 Deploying to Private Instance 2 ($INSTANCE_IP)..."
+          
+          # Create directory
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@$INSTANCE_IP "mkdir -p ${{ env.APP_DIR }}"
+          
+          # Copy files
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            --exclude '.git' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.github' \
+            --exclude 'infrastructure/terraform.tfstate*' \
+            --exclude 'infrastructure/*.pem' \
+            ./ ${{ env.EC2_USER }}@$INSTANCE_IP:${{ env.APP_DIR }}/
+          
+          echo "✅ Files copied to Private Instance 2"
+      
+      - name: Install MySQL and create user for all instances
+        run: |
+          INSTANCE_IP="${{ steps.terraform.outputs.private_instance_2_ip }}"
+          PUBLIC_IP="${{ steps.terraform.outputs.public_instance_ip }}"
+          PRIVATE_1_IP="${{ steps.terraform.outputs.private_instance_1_ip }}"
+          PRIVATE_2_IP="${{ steps.terraform.outputs.private_instance_2_ip }}"
+          
+          echo "🚀 Installing MySQL on Private Instance 2 ($INSTANCE_IP)..."
+          
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@$INSTANCE_IP bash << ENDSSH
+            cd ${{ env.APP_DIR }}/scripts
+            chmod +x install_mysql.sh
+            ./install_mysql.sh "$PUBLIC_IP" "$PRIVATE_1_IP" "$PRIVATE_2_IP" "${{ secrets.MYSQL_PASSWORD }}"
+          ENDSSH
+          
+          echo "✅ MySQL setup complete on Private Instance 2"
+          echo "📍 MySQL Server: $INSTANCE_IP:3306"
+          echo "👤 Username: ga_app_user"
+          echo "🗄️  Database: ga_framework"
+          echo "🔐 Accessible from:"
+          echo "   - Public Instance: $PUBLIC_IP"
+          echo "   - Private Instance 1: $PRIVATE_1_IP"
+          echo "   - Private Instance 2: $PRIVATE_2_IP"
+
+      - name: Deploy to Private Instance 1
+        run: |
+          INSTANCE_IP="${{ steps.terraform.outputs.private_instance_1_ip }}"
+          echo "🚀 Deploying to Private Instance 1 ($INSTANCE_IP)..."
+          
+          # Create directory
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@$INSTANCE_IP "mkdir -p ${{ env.APP_DIR }}"
+          
+          # Copy files
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            --exclude '.git' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.github' \
+            --exclude 'infrastructure/terraform.tfstate*' \
+            --exclude 'infrastructure/*.pem' \
+            ./ ${{ env.EC2_USER }}@$INSTANCE_IP:${{ env.APP_DIR }}/
+          
+          echo "✅ Files copied to Private Instance 1"
+
+      - name: Deploy to Private Instance 2
+        run: |
+          INSTANCE_IP="${{ steps.terraform.outputs.private_instance_2_ip }}"
+          echo "🚀 Deploying to Private Instance 2 ($INSTANCE_IP)..."
+          
+          # Create directory
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@$INSTANCE_IP "mkdir -p ${{ env.APP_DIR }}"
+          
+          # Copy files
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            --exclude '.git' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.github' \
+            --exclude 'infrastructure/terraform.tfstate*' \
+            --exclude 'infrastructure/*.pem' \
+            ./ ${{ env.EC2_USER }}@$INSTANCE_IP:${{ env.APP_DIR }}/
+          
+          echo "✅ Files copied to Private Instance 2"
+
+      - name: Install Python dependencies on all instances
+        run: |
+          for INSTANCE_NAME in "Public" "Private-1" "Private-2"; do
+            case $INSTANCE_NAME in
+              "Public")
+                INSTANCE_IP="${{ steps.terraform.outputs.public_instance_ip }}"
+                ;;
+              "Private-1")
+                INSTANCE_IP="${{ steps.terraform.outputs.private_instance_1_ip }}"
+                ;;
+              "Private-2")
+                INSTANCE_IP="${{ steps.terraform.outputs.private_instance_2_ip }}"
+                ;;
+            esac
+            
+            echo "📦 Installing Python dependencies on $INSTANCE_NAME Instance ($INSTANCE_IP)..."
+            
+            ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@$INSTANCE_IP bash << 'EOF'
+              cd ${{ env.APP_DIR }}/scripts
+              chmod +x install_dependencies.sh
+              ./install_dependencies.sh ${{ env.APP_DIR }}
+          EOF
+          done
+
+      - name: Setup Docker on all instances
+        run: |
+          for INSTANCE_NAME in "Public" "Private-1" "Private-2"; do
+            case $INSTANCE_NAME in
+              "Public")
+                INSTANCE_IP="${{ steps.terraform.outputs.public_instance_ip }}"
+                ;;
+              "Private-1")
+                INSTANCE_IP="${{ steps.terraform.outputs.private_instance_1_ip }}"
+                ;;
+              "Private-2")
+                INSTANCE_IP="${{ steps.terraform.outputs.private_instance_2_ip }}"
+                ;;
+            esac
+            
+            echo "🐳 Setting up Docker on $INSTANCE_NAME Instance ($INSTANCE_IP)..."
+            
+            ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@$INSTANCE_IP bash << 'EOF'
+              cd ${{ env.APP_DIR }}/scripts
+              chmod +x install_docker.sh
+              ./install_docker.sh
+          EOF
+          done
+
+      - name: Start application on all instances
+        run: |
+          for INSTANCE_NAME in "Public" "Private-1" "Private-2"; do
+            case $INSTANCE_NAME in
+              "Public")
+                INSTANCE_IP="${{ steps.terraform.outputs.public_instance_ip }}"
+                ;;
+              "Private-1")
+                INSTANCE_IP="${{ steps.terraform.outputs.private_instance_1_ip }}"
+                ;;
+              "Private-2")
+                INSTANCE_IP="${{ steps.terraform.outputs.private_instance_2_ip }}"
+                ;;
+            esac
+            
+            echo "🚀 Starting application on $INSTANCE_NAME Instance ($INSTANCE_IP)..."
+            
+            ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@$INSTANCE_IP bash << 'EOF'
+              cd ${{ env.APP_DIR }}/scripts
+              chmod +x start_application.sh
+              ./start_application.sh ${{ env.APP_DIR }}
+          EOF
+          done
+
+      - name: Health check all instances
+        run: |
+          echo "🏥 Running health checks on all instances..."
+          
+          for INSTANCE_NAME in "Public" "Private-1" "Private-2"; do
+            case $INSTANCE_NAME in
+              "Public")
+                INSTANCE_IP="${{ steps.terraform.outputs.public_instance_ip }}"
+                ;;
+              "Private-1")
+                INSTANCE_IP="${{ steps.terraform.outputs.private_instance_1_ip }}"
+                ;;
+              "Private-2")
+                INSTANCE_IP="${{ steps.terraform.outputs.private_instance_2_ip }}"
+                ;;
+            esac
+            
+            echo "Checking $INSTANCE_NAME Instance ($INSTANCE_IP)..."
+            
+            ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@$INSTANCE_IP bash << 'EOF'
+              cd ${{ env.APP_DIR }}/scripts
+              chmod +x health_check.sh
+              ./health_check.sh ${{ env.APP_DIR }}
+          EOF
+          done
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "==================================="
+          echo "🎉 Deployment Summary"
+          echo "==================================="
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo ""
+          echo "📍 Deployed to:"
+          echo "  • Public Instance: ${{ steps.terraform.outputs.public_instance_ip }}"
+          echo "  • Private Instance 1: ${{ steps.terraform.outputs.private_instance_1_ip }}"
+          echo "  • Private Instance 2: ${{ steps.terraform.outputs.private_instance_2_ip }}"
+          echo ""
+          echo "📂 Application directory: ${{ env.APP_DIR }}"
+          echo "🌍 AWS Region: ${{ env.AWS_REGION }}"
+          echo "==================================="
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key.pem
+          echo "✅ Cleanup complete"
 
       
