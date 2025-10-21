@@ -1,0 +1,118 @@
+name: Deploy to AWS EC2 Instances
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  workflow_dispatch:
+
+env:
+  EC2_USER: ubuntu
+  APP_DIR: /home/ubuntu/ga-framework
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
+          chmod 600 ~/.ssh/deploy_key.pem
+          ssh-keyscan -H ${{ secrets.PUBLIC_INSTANCE_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_1_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_2_IP }} >> ~/.ssh/known_hosts
+          echo "✅ SSH keys configured"
+
+      - name: Test SSH connections
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "echo '✅ Public Instance'"
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "echo '✅ Private Instance 1'"
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "echo '✅ Private Instance 2'"
+
+      - name: Copy files to Public Instance
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "mkdir -p ${{ env.APP_DIR }}"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude '.github' \
+            ./ ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }}:${{ env.APP_DIR }}/
+
+      - name: Copy files to Private Instance 1
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "mkdir -p ${{ env.APP_DIR }}"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude '.github' \
+            ./ ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }}:${{ env.APP_DIR }}/
+
+      - name: Copy files to Private Instance 2
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "mkdir -p ${{ env.APP_DIR }}"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude '.github' \
+            ./ ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }}:${{ env.APP_DIR }}/
+
+      - name: Setup Public Instance (Docker + Prometheus + Grafana)
+        run: |
+          PRIVATE_1_IP="${{ secrets.PRIVATE_INSTANCE_1_IP }}"
+          PRIVATE_2_IP="${{ secrets.PRIVATE_INSTANCE_2_IP }}"
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_public_instance.sh && ./setup_public_instance.sh $PRIVATE_1_IP $PRIVATE_2_IP ${{ env.APP_DIR }}"
+
+      - name: Setup Private Instance 1 (Node Exporter)
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_private_instance_1.sh && ./setup_private_instance_1.sh"
+
+      - name: Setup Private Instance 2 (MySQL + Exporters + App)
+        run: |
+          PUBLIC_IP="${{ secrets.PUBLIC_INSTANCE_IP }}"
+          PRIVATE_1_IP="${{ secrets.PRIVATE_INSTANCE_1_IP }}"
+          PRIVATE_2_IP="${{ secrets.PRIVATE_INSTANCE_2_IP }}"
+          MYSQL_PASS="${{ secrets.MYSQL_PASSWORD }}"
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_private_instance_2.sh && ./setup_private_instance_2.sh $PUBLIC_IP $PRIVATE_1_IP $PRIVATE_2_IP $MYSQL_PASS ${{ env.APP_DIR }}"
+
+      - name: Start Optimization Application
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x start_application.sh && ./start_application.sh ${{ env.APP_DIR }}"
+
+      - name: Health Check Public Instance
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "sudo docker ps && curl -s http://localhost:9090/-/healthy || echo 'Prometheus check failed'"
+
+      - name: Health Check Private Instance 1
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "systemctl is-active node_exporter && curl -s http://localhost:9100/metrics | head -3"
+
+      - name: Health Check Private Instance 2
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x health_check.sh && ./health_check.sh ${{ env.APP_DIR }} && systemctl is-active mysql node_exporter mysql_exporter"
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "========================================="
+          echo "🎉 Deployment Complete"
+          echo "========================================="
+          echo ""
+          echo "📍 PUBLIC INSTANCE: ${{ secrets.PUBLIC_INSTANCE_IP }}"
+          echo "   ✅ Docker, Prometheus, Grafana"
+          echo "   📊 Prometheus: http://${{ secrets.PUBLIC_INSTANCE_IP }}:9090"
+          echo "   📈 Grafana: http://${{ secrets.PUBLIC_INSTANCE_IP }}:3000"
+          echo ""
+          echo "📍 PRIVATE INSTANCE 1: ${{ secrets.PRIVATE_INSTANCE_1_IP }}"
+          echo "   ✅ Node Exporter"
+          echo "   📊 Metrics: http://${{ secrets.PRIVATE_INSTANCE_1_IP }}:9100"
+          echo ""
+          echo "📍 PRIVATE INSTANCE 2: ${{ secrets.PRIVATE_INSTANCE_2_IP }}"
+          echo "   ✅ MySQL, MySQL Exporter, Node Exporter, GA Framework"
+          echo "   🗄️  MySQL: ${{ secrets.PRIVATE_INSTANCE_2_IP }}:3306"
+          echo "   📊 MySQL Exporter: http://${{ secrets.PRIVATE_INSTANCE_2_IP }}:9104"
+          echo "   📊 Node Exporter: http://${{ secrets.PRIVATE_INSTANCE_2_IP }}:9100"
+          echo "========================================="
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key.pem

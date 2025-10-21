@@ -1,10 +1,81 @@
 # Deployment Scripts
 
-This directory contains reusable bash scripts for deploying and managing the GA Framework application on EC2 instances.
+This directory contains reusable bash scripts for deploying and managing the GA Framework application on AWS EC2 instances.
+
+## 🏗️ Infrastructure Architecture
+
+- **Public Instance**: Docker + Prometheus + Grafana (monitoring dashboard)
+- **Private Instance 1**: Node Exporter (system metrics)
+- **Private Instance 2**: MySQL + MySQL Exporter + Node Exporter + GA Framework Application
 
 ## Scripts Overview
 
-### 1. `install_dependencies.sh`
+### Instance Setup Scripts
+
+#### 1. `setup_public_instance.sh`
+**Purpose:** Setup Public Instance with Docker, Prometheus, and Grafana
+
+**Usage:**
+```bash
+./setup_public_instance.sh <private_1_ip> <private_2_ip> [app_directory]
+```
+
+**What it does:**
+- Installs Docker and Docker Compose
+- Creates monitoring Docker network
+- Configures Prometheus to scrape all exporters
+- Starts Prometheus container
+- Starts Grafana container
+
+**Example:**
+```bash
+./setup_public_instance.sh "172.31.10.20" "172.31.10.21" "/home/ubuntu/ga-framework"
+```
+
+---
+
+#### 2. `setup_private_instance_1.sh`
+**Purpose:** Setup Private Instance 1 with Node Exporter
+
+**Usage:**
+```bash
+./setup_private_instance_1.sh
+```
+
+**What it does:**
+- Downloads and installs Node Exporter v1.8.2
+- Creates systemd service for Node Exporter
+- Starts and enables the service
+- Exposes metrics on port 9100
+
+---
+
+#### 3. `setup_private_instance_2.sh`
+**Purpose:** Setup Private Instance 2 with MySQL, Exporters, and Application
+
+**Usage:**
+```bash
+./setup_private_instance_2.sh <public_ip> <private_1_ip> <private_2_ip> <mysql_password> [app_directory]
+```
+
+**What it does:**
+- Installs MySQL Server with remote access
+- Installs Python dependencies for GA Framework
+- Installs Node Exporter
+- Installs MySQL Exporter
+- Configures all services
+- Creates MySQL users accessible from all instances
+
+**Example:**
+```bash
+./setup_private_instance_2.sh "172.31.10.19" "172.31.10.20" "172.31.10.21" "SecurePass123" "/home/ubuntu/ga-framework"
+```
+
+---
+
+### Application Management Scripts
+
+#### 1. `install_dependencies.sh`
 **Purpose:** Install Python and all project dependencies
 
 **Usage:**
