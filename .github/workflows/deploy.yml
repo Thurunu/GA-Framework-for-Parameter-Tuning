@@ -22,7 +22,9 @@ jobs:
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
+          echo "✅ SSH directory created"
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
+          echo "✅ SSH key created"
           chmod 600 ~/.ssh/deploy_key.pem
           
           # Add all instances to known_hosts
