@@ -34,7 +34,7 @@ MYSQL_NEEDS_INSTALL=false
 
 if ! systemctl is-active mysql 2>/dev/null; then
     echo "📦 MySQL is not running"
-    MYSQL_NEEDS_INSTALL=false
+    MYSQL_NEEDS_INSTALL=true
 elif sudo mysql -e "USE ga_optimization_db;" 2>/dev/null; then
     echo "⚠️  MySQL running but ga_optimization_db doesn't exist"
     MYSQL_NEEDS_INSTALL=false
