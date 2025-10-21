@@ -28,11 +28,14 @@ jobs:
 
           echo "✅ SSH key created"
           chmod 600 ~/.ssh/deploy_key.pem
-          
+          cat ~/.ssh/deploy_key.pem  # Debug: Verify key content
           # Add all instances to known_hosts
-            ssh-keyscan -H ${{ secrets.PUBLIC_INSTANCE_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
-            ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_1_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
-            ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_2_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo ${{ secrets.PUBLIC_INSTANCE_IP }}
+          echo ${{ secrets.PRIVATE_INSTANCE_1_IP }}
+            echo ${{ secrets.PRIVATE_INSTANCE_2_IP }}
+          ssh-keyscan -H ${{ secrets.PUBLIC_INSTANCE_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_1_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_2_IP }} >> ~/.ssh/known_hosts
           
           echo "✅ SSH keys configured for all instances"
 
