@@ -67,8 +67,8 @@ jobs:
 
       - name: Setup Public Instance (Docker + Prometheus + Grafana)
         run: |
-          PRIVATE_1_IP="${{ secrets.PRIVATE_INSTANCE_1_IP }}"
-          PRIVATE_2_IP="${{ secrets.PRIVATE_INSTANCE_2_IP }}"
+          PRIVATE_1_IP="${{ secrets.PRIVATE_INSTANCE_1_PRIVATE_IP }}"
+          PRIVATE_2_IP="${{ secrets.PRIVATE_INSTANCE_2_PRIVATE_IP }}"
           ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_public_instance.sh && ./setup_public_instance.sh $PRIVATE_1_IP $PRIVATE_2_IP ${{ env.APP_DIR }}"
 
       - name: Setup Private Instance 1 (Node Exporter)

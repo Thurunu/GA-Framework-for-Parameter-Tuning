@@ -8,6 +8,26 @@ NODE_EXPORTER_VERSION="1.8.2"
 
 echo "🚀 Setting up Private Instance 1 with Node Exporter..."
 
+# Check if Node Exporter is already installed and running
+if systemctl is-active --quiet node_exporter; then
+    echo "✅ Node Exporter service is already running"
+    
+    # Check if it's responding
+    if curl -s http://localhost:9100/metrics > /dev/null 2>&1; then
+        echo "✅ Node Exporter is responding correctly"
+        echo "📊 Node Exporter endpoint: http://$(hostname -I | awk '{print $1}'):9100/metrics"
+        echo "⏭️  Skipping installation - everything is already configured"
+        exit 0
+    else
+        echo "⚠️  Service is running but not responding, reinstalling..."
+        sudo systemctl stop node_exporter
+    fi
+elif [ -f /usr/local/bin/node_exporter ]; then
+    echo "⚠️  Node Exporter binary exists but service is not running, reconfiguring..."
+else
+    echo "📦 Node Exporter not found, proceeding with installation..."
+fi
+
 # Download and install Node Exporter
 echo "Downloading Node Exporter v${NODE_EXPORTER_VERSION}..."
 cd /tmp

@@ -16,24 +16,58 @@ MYSQL_EXPORTER_VERSION="0.15.1"
 echo "🚀 Setting up Private Instance 2 with MySQL, Exporters, and Application..."
 
 # 1. Install MySQL
-echo "Installing MySQL Server..."
-cd "$APP_DIR/scripts"
-chmod +x install_mysql.sh
-./install_mysql.sh "$PUBLIC_IP" "$PRIVATE_1_IP" "$PRIVATE_2_IP" "$MYSQL_PASSWORD"
+# Check if MySQL is already installed and the database exists
+if systemctl is-active --quiet mysql && sudo mysql -e "USE ga_optimization_db;" 2>/dev/null; then
+    echo "✅ MySQL Server already installed and ga_optimization_db exists"
+    
+    # Check if ga_app_user exists
+    if sudo mysql -e "SELECT User FROM mysql.user WHERE User='ga_app_user';" 2>/dev/null | grep -q "ga_app_user"; then
+        echo "✅ MySQL user ga_app_user already exists"
+        echo "⏭️  Skipping MySQL installation and configuration"
+    else
+        echo "⚠️  MySQL installed but user missing, reconfiguring..."
+        cd "$APP_DIR/scripts"
+        chmod +x install_mysql.sh
+        ./install_mysql.sh "$PUBLIC_IP" "$PRIVATE_1_IP" "$PRIVATE_2_IP" "$MYSQL_PASSWORD"
+    fi
+else
+    echo "Installing MySQL Server..."
+    cd "$APP_DIR/scripts"
+    chmod +x install_mysql.sh
+    ./install_mysql.sh "$PUBLIC_IP" "$PRIVATE_1_IP" "$PRIVATE_2_IP" "$MYSQL_PASSWORD"
+fi
 
 # 2. Install Python dependencies
-echo "Installing Python dependencies..."
-chmod +x install_dependencies.sh
-./install_dependencies.sh "$APP_DIR"
+# Check if Python and venv are already installed
+if command -v python3 &> /dev/null && python3 -m venv --help &> /dev/null 2>&1; then
+    echo "✅ Python3 and venv already installed"
+    
+    # Check if virtual environment exists
+    if [ -d "$APP_DIR/venv" ]; then
+        echo "✅ Virtual environment already exists at $APP_DIR/venv"
+        echo "⏭️  Skipping Python setup (will update dependencies if needed)"
+    else
+        echo "📦 Installing Python dependencies..."
+        chmod +x install_dependencies.sh
+        ./install_dependencies.sh "$APP_DIR"
+    fi
+else
+    echo "📦 Installing Python dependencies..."
+    chmod +x install_dependencies.sh
+    ./install_dependencies.sh "$APP_DIR"
+fi
 
 # 3. Install Node Exporter
-echo "Installing Node Exporter v${NODE_EXPORTER_VERSION}..."
-cd /tmp
-wget -q https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
-tar xzf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
-sudo cp node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
-sudo chmod +x /usr/local/bin/node_exporter
-rm -rf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64*
+if systemctl is-active --quiet node_exporter && curl -s http://localhost:9100/metrics > /dev/null 2>&1; then
+    echo "✅ Node Exporter already running and responding correctly, skipping installation"
+else
+    echo "Installing Node Exporter v${NODE_EXPORTER_VERSION}..."
+    cd /tmp
+    wget -q https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+    tar xzf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+    sudo cp node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
+    sudo chmod +x /usr/local/bin/node_exporter
+    rm -rf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64*
 
 # Create Node Exporter service
 sudo tee /etc/systemd/system/node_exporter.service > /dev/null << 'NODEEOF'
@@ -53,20 +87,23 @@ RestartSec=5
 WantedBy=multi-user.target
 NODEEOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable node_exporter
-sudo systemctl restart node_exporter
-
-echo "✅ Node Exporter installed"
+    sudo systemctl daemon-reload
+    sudo systemctl enable node_exporter
+    sudo systemctl restart node_exporter
+    echo "✅ Node Exporter installed"
+fi
 
 # 4. Install MySQL Exporter
-echo "Installing MySQL Exporter v${MYSQL_EXPORTER_VERSION}..."
-cd /tmp
-wget -q https://github.com/prometheus/mysqld_exporter/releases/download/v${MYSQL_EXPORTER_VERSION}/mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64.tar.gz
-tar xzf mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64.tar.gz
-sudo cp mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64/mysqld_exporter /usr/local/bin/
-sudo chmod +x /usr/local/bin/mysqld_exporter
-rm -rf mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64*
+if systemctl is-active --quiet mysql_exporter && curl -s http://localhost:9104/metrics > /dev/null 2>&1; then
+    echo "✅ MySQL Exporter already running and responding correctly, skipping installation"
+else
+    echo "Installing MySQL Exporter v${MYSQL_EXPORTER_VERSION}..."
+    cd /tmp
+    wget -q https://github.com/prometheus/mysqld_exporter/releases/download/v${MYSQL_EXPORTER_VERSION}/mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64.tar.gz
+    tar xzf mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64.tar.gz
+    sudo cp mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64/mysqld_exporter /usr/local/bin/
+    sudo chmod +x /usr/local/bin/mysqld_exporter
+    rm -rf mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64*
 
 # Create MySQL Exporter configuration
 sudo tee /etc/.mysqld_exporter.cnf > /dev/null << MYSQLEOF
@@ -97,11 +134,11 @@ RestartSec=5
 WantedBy=multi-user.target
 MYSQLSERVEOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable mysql_exporter
-sudo systemctl restart mysql_exporter
-
-echo "✅ MySQL Exporter installed"
+    sudo systemctl daemon-reload
+    sudo systemctl enable mysql_exporter
+    sudo systemctl restart mysql_exporter
+    echo "✅ MySQL Exporter installed"
+fi
 
 # Setup python
 sudo apt-get -y update
