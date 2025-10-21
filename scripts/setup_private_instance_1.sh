@@ -35,6 +35,10 @@ wget -q https://github.com/prometheus/node_exporter/releases/download/v${NODE_EX
 
 echo "Installing Node Exporter..."
 tar xzf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+
+# Stop the service if it's running before copying
+sudo systemctl stop node_exporter 2>/dev/null || true
+
 sudo cp node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
 sudo chmod +x /usr/local/bin/node_exporter
 

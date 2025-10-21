@@ -65,6 +65,10 @@ else
     cd /tmp
     wget -q https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
     tar xzf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+    
+    # Stop service before copying binary
+    sudo systemctl stop node_exporter 2>/dev/null || true
+    
     sudo cp node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
     sudo chmod +x /usr/local/bin/node_exporter
     rm -rf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64*
@@ -101,6 +105,10 @@ else
     cd /tmp
     wget -q https://github.com/prometheus/mysqld_exporter/releases/download/v${MYSQL_EXPORTER_VERSION}/mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64.tar.gz
     tar xzf mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64.tar.gz
+    
+    # Stop service before copying binary
+    sudo systemctl stop mysql_exporter 2>/dev/null || true
+    
     sudo cp mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64/mysqld_exporter /usr/local/bin/
     sudo chmod +x /usr/local/bin/mysqld_exporter
     rm -rf mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64*
