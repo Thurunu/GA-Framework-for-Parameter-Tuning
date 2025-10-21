@@ -16,7 +16,10 @@ cd "$APP_DIR/scripts"
 chmod +x install_docker.sh
 ./install_docker.sh
 
-# Create Docker network for monitoring
+# Stop all running Docker containers
+echo "Stopping all running Docker containers..."
+sudo docker stop $(sudo docker ps -q) 2>/dev/null || echo "✅ Stopped all running containers"
+
 # sudo docker network create "$DOCKER_NETWORK" 2>/dev/null || echo "✓ Network $DOCKER_NETWORK already exists"
 
 # Create Prometheus configuration directory
