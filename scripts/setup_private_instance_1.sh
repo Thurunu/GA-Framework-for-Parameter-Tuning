@@ -9,7 +9,7 @@ NODE_EXPORTER_VERSION="1.8.2"
 echo "🚀 Setting up Private Instance 1 with Node Exporter..."
 
 # Check if Node Exporter is already installed and running correctly
-if systemctl is-active --quiet node_exporter 2>/dev/null; then
+if systemctl is-active node_exporter 2>/dev/null; then
     echo "✅ Node Exporter service is already running"
     
     # Check if it's responding with metrics

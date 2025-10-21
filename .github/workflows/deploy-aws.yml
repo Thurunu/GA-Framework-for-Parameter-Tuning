@@ -71,17 +71,17 @@ jobs:
           PRIVATE_2_IP="${{ secrets.PRIVATE_INSTANCE_2_PRIVATE_IP }}"
           ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_public_instance.sh && ./setup_public_instance.sh $PRIVATE_1_IP $PRIVATE_2_IP ${{ env.APP_DIR }}"
 
-      # - name: Setup Private Instance 1 (Node Exporter)
-      #   run: |
-      #     ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_private_instance_1.sh && ./setup_private_instance_1.sh"
+      - name: Setup Private Instance 1 (Node Exporter)
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_private_instance_1.sh && ./setup_private_instance_1.sh"
 
-      # - name: Setup Private Instance 2 (MySQL + Exporters + App)
-      #   run: |
-      #     PUBLIC_IP="${{ secrets.PUBLIC_INSTANCE_IP }}"
-      #     PRIVATE_1_IP="${{ secrets.PRIVATE_INSTANCE_1_IP }}"
-      #     PRIVATE_2_IP="${{ secrets.PRIVATE_INSTANCE_2_IP }}"
-      #     MYSQL_PASS="${{ secrets.MYSQL_PASSWORD }}"
-      #     ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_private_instance_2.sh && ./setup_private_instance_2.sh $PUBLIC_IP $PRIVATE_1_IP $PRIVATE_2_IP $MYSQL_PASS ${{ env.APP_DIR }}"
+      - name: Setup Private Instance 2 (MySQL + Exporters + App)
+        run: |
+          PUBLIC_IP="${{ secrets.PUBLIC_INSTANCE_IP }}"
+          PRIVATE_1_IP="${{ secrets.PRIVATE_INSTANCE_1_PRIVATE_IP }}"
+          PRIVATE_2_IP="${{ secrets.PRIVATE_INSTANCE_2_PRIVATE_IP }}"
+          MYSQL_PASS="${{ secrets.MYSQL_PASSWORD }}"
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_private_instance_2.sh && ./setup_private_instance_2.sh $PUBLIC_IP $PRIVATE_1_IP $PRIVATE_2_IP $MYSQL_PASS ${{ env.APP_DIR }}"
 
       # - name: Start Optimization Application
       #   run: |

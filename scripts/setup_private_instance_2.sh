@@ -30,7 +30,7 @@ echo "Checking MySQL Server..."
 # Check if MySQL is installed, running, and properly configured
 MYSQL_NEEDS_INSTALL=false
 
-if ! systemctl is-active --quiet mysql 2>/dev/null; then
+if ! systemctl is-active mysql 2>/dev/null; then
     echo "📦 MySQL is not running"
     MYSQL_NEEDS_INSTALL=true
 elif ! sudo mysql -e "USE ga_optimization_db;" 2>/dev/null; then
@@ -88,7 +88,7 @@ fi
 echo ""
 echo "Checking Node Exporter..."
 
-if systemctl is-active --quiet node_exporter 2>/dev/null && \
+if systemctl is-active node_exporter 2>/dev/null && \
    curl -sf http://localhost:9100/metrics >/dev/null 2>&1; then
     echo "✅ Node Exporter already running and responding correctly"
 else
@@ -147,7 +147,7 @@ fi
 echo ""
 echo "Checking MySQL Exporter..."
 
-if systemctl is-active --quiet mysql_exporter 2>/dev/null && \
+if systemctl is-active mysql_exporter 2>/dev/null && \
    curl -sf http://localhost:9104/metrics >/dev/null 2>&1; then
     echo "✅ MySQL Exporter already running and responding correctly"
 else
@@ -232,7 +232,7 @@ echo "Services Status:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # MySQL Status
-if systemctl is-active --quiet mysql; then
+if systemctl is-active mysql; then
     echo "✅ MySQL Server: Running"
     sudo systemctl status mysql --no-pager | grep -E "Active:|Main PID:" | sed 's/^/   /'
 else
@@ -242,7 +242,7 @@ fi
 echo ""
 
 # Node Exporter Status
-if systemctl is-active --quiet node_exporter; then
+if systemctl is-active node_exporter; then
     echo "✅ Node Exporter: Running"
     sudo systemctl status node_exporter --no-pager | grep -E "Active:|Main PID:" | sed 's/^/   /'
 else
@@ -252,7 +252,7 @@ fi
 echo ""
 
 # MySQL Exporter Status
-if systemctl is-active --quiet mysql_exporter; then
+if systemctl is-active mysql_exporter; then
     echo "✅ MySQL Exporter: Running"
     sudo systemctl status mysql_exporter --no-pager | grep -E "Active:|Main PID:" | sed 's/^/   /'
 else
