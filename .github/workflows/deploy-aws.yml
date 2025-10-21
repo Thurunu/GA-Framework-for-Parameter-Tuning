@@ -18,7 +18,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
+     
+      - name: Verify repository content
+        run: |
+          echo "Current working directory: $(pwd)"
+          echo "List of files:" 
+          ls -la
+          
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
