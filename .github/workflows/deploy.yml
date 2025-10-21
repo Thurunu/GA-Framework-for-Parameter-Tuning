@@ -30,9 +30,9 @@ jobs:
           chmod 600 ~/.ssh/deploy_key.pem
           
           # Add all instances to known_hosts
-          ssh-keyscan -H ${{ secrets.PUBLIC_INSTANCE_IP }} >> ~/.ssh/known_hosts
-          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_1_IP }} >> ~/.ssh/known_hosts
-          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_2_IP }} >> ~/.ssh/known_hosts
+            ssh-keyscan -H ${{ secrets.PUBLIC_INSTANCE_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+            ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_1_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+            ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_2_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
           
           echo "✅ SSH keys configured for all instances"
 
