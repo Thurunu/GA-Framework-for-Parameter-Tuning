@@ -61,39 +61,25 @@ EOF
 
 echo "✅ Prometheus configuration created"
 
+# Start Docker Compose services (Prometheus & Grafana)
+echo "Starting Prometheus and Grafana with Docker Compose..."
+cd "$APP_DIR/docker"
+
 # Stop and remove existing containers if they exist
 sudo docker compose down -v 2>/dev/null || true
+
+# Start services
 sudo docker compose up -d
 
-# Start Prometheus
-# echo "Starting Prometheus..."
-# sudo docker run -d \
-#   --name prometheus \
-#   --network "$DOCKER_NETWORK" \
-#   --restart unless-stopped \
-#   -p 9090:9090 \
-#   -v "$APP_DIR/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml" \
-#   prom/prometheus:latest \
-#   --config.file=/etc/prometheus/prometheus.yml
-
-# Start Grafana
-# echo "Starting Grafana..."
-# sudo docker run -d \
-#   --name grafana \
-#   --network "$DOCKER_NETWORK" \
-#   --restart unless-stopped \
-#   -p 3000:3000 \
-#   -e "GF_SECURITY_ADMIN_PASSWORD=${{ secrets.GRAFANA_PASSWORD:-admin }}" \
-#   grafana/grafana:latest
-
 # Wait for containers to start
+echo "Waiting for services to start..."
 sleep 10
 
 # Check status
 echo ""
 echo "✅ Public Instance setup complete!"
-echo "📊 Prometheus: http://prometheus:9090"
-echo "📈 Grafana: http://grafana:3000"
+echo "📊 Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
+echo "📈 Grafana: http://$(hostname -I | awk '{print $1}'):3000"
 echo ""
 echo "Docker containers:"
 sudo docker ps --filter "name=prometheus" --filter "name=grafana"

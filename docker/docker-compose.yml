@@ -1,19 +1,27 @@
 services:
   prometheus:
     image: "prom/prometheus"
+    container_name: prometheus
+    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
       - /home/ubuntu/prometheus:/etc/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
     networks:
       - monitoring
  
   grafana:
     image: "grafana/grafana"
+    container_name: grafana
+    restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
       - /home/ubuntu/grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
     networks:
