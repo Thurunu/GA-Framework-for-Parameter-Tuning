@@ -62,8 +62,8 @@ EOF
 echo "✅ Prometheus configuration created"
 
 # Stop and remove existing containers if they exist
-# sudo docker stop prometheus grafana 2>/dev/null || true
-# sudo docker rm prometheus grafana 2>/dev/null || true
+sudo docker compose down -v 2>/dev/null || true
+sudo docker compose up -d
 
 # Start Prometheus
 # echo "Starting Prometheus..."
@@ -87,13 +87,13 @@ echo "✅ Prometheus configuration created"
 #   grafana/grafana:latest
 
 # Wait for containers to start
-sleep 5
+sleep 10
 
 # Check status
 echo ""
 echo "✅ Public Instance setup complete!"
-echo "📊 Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
-echo "📈 Grafana: http://$(hostname -I | awk '{print $1}'):3000"
+echo "📊 Prometheus: http://prometheus:9090"
+echo "📈 Grafana: http://grafana:3000"
 echo ""
 echo "Docker containers:"
 sudo docker ps --filter "name=prometheus" --filter "name=grafana"
