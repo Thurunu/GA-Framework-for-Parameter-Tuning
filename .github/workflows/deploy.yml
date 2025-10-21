@@ -21,10 +21,12 @@ jobs:
 
       - name: Debug SSH Key
         run: |
+          set -e
+          set -i
           ls -l ~/.ssh/
           file ~/.ssh/deploy_key.pem
           head -5 ~/.ssh/deploy_key.pem
-
+          echo "✅ Debugging SSH key completed"
       - name: Setup SSH key
         run: |
           set -e
