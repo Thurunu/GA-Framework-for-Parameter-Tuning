@@ -24,11 +24,11 @@ jobs:
           mkdir -p ~/.ssh
           echo "✅ SSH directory created"
           echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key.pem
+          cat ~/.ssh/deploy_key.pem  # Debug: Verify key content
           echo "" >> ~/.ssh/deploy_key.pem
 
           echo "✅ SSH key created"
           chmod 600 ~/.ssh/deploy_key.pem
-          cat ~/.ssh/deploy_key.pem  # Debug: Verify key content
           # Add all instances to known_hosts
           echo ${{ secrets.PUBLIC_INSTANCE_IP }}
           echo ${{ secrets.PRIVATE_INSTANCE_1_IP }}
