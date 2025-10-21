@@ -44,17 +44,17 @@ jobs:
 
       - name: Copy files to Public Instance
         run: |
-          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "mkdir -p ${{ env.APP_DIR }}"
           rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
-            --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude '.github' \
-            ./ ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }}:${{ env.APP_DIR }}/
+          --include 'docker' \
+          --exclude '*' \
+          ./ ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }}:${{ env.APP_DIR }}/
 
-      - name: Copy files to Private Instance 1
-        run: |
-          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "mkdir -p ${{ env.APP_DIR }}"
-          rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
-            --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude '.github' \
-            ./ ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }}:${{ env.APP_DIR }}/
+      # - name: Copy files to Private Instance 1
+      #   run: |
+      #     ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "mkdir -p ${{ env.APP_DIR }}"
+      #     rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+      #       --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude '.github' \
+      #       ./ ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }}:${{ env.APP_DIR }}/
 
       - name: Copy files to Private Instance 2
         run: |

@@ -20,10 +20,13 @@ chmod +x install_docker.sh
 sudo docker network create "$DOCKER_NETWORK" 2>/dev/null || echo "✓ Network $DOCKER_NETWORK already exists"
 
 # Create Prometheus configuration directory
-mkdir -p "$APP_DIR/monitoring/prometheus"
+mkdir -p "/home/ubuntu/prometheus"
+
+# Create Grafana data directory
+mkdir -p "/home/ubuntu/grafana"
 
 # Create Prometheus configuration file
-cat > "$APP_DIR/monitoring/prometheus/prometheus.yml" << EOF
+cat > "/home/ubuntu/prometheus/prometheus.yml" << EOF
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -59,29 +62,29 @@ EOF
 echo "✅ Prometheus configuration created"
 
 # Stop and remove existing containers if they exist
-sudo docker stop prometheus grafana 2>/dev/null || true
-sudo docker rm prometheus grafana 2>/dev/null || true
+# sudo docker stop prometheus grafana 2>/dev/null || true
+# sudo docker rm prometheus grafana 2>/dev/null || true
 
 # Start Prometheus
-echo "Starting Prometheus..."
-sudo docker run -d \
-  --name prometheus \
-  --network "$DOCKER_NETWORK" \
-  --restart unless-stopped \
-  -p 9090:9090 \
-  -v "$APP_DIR/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml" \
-  prom/prometheus:latest \
-  --config.file=/etc/prometheus/prometheus.yml
+# echo "Starting Prometheus..."
+# sudo docker run -d \
+#   --name prometheus \
+#   --network "$DOCKER_NETWORK" \
+#   --restart unless-stopped \
+#   -p 9090:9090 \
+#   -v "$APP_DIR/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml" \
+#   prom/prometheus:latest \
+#   --config.file=/etc/prometheus/prometheus.yml
 
 # Start Grafana
-echo "Starting Grafana..."
-sudo docker run -d \
-  --name grafana \
-  --network "$DOCKER_NETWORK" \
-  --restart unless-stopped \
-  -p 3000:3000 \
-  -e "GF_SECURITY_ADMIN_PASSWORD=${{ secrets.GRAFANA_PASSWORD:-admin }}" \
-  grafana/grafana:latest
+# echo "Starting Grafana..."
+# sudo docker run -d \
+#   --name grafana \
+#   --network "$DOCKER_NETWORK" \
+#   --restart unless-stopped \
+#   -p 3000:3000 \
+#   -e "GF_SECURITY_ADMIN_PASSWORD=${{ secrets.GRAFANA_PASSWORD:-admin }}" \
+#   grafana/grafana:latest
 
 # Wait for containers to start
 sleep 5
