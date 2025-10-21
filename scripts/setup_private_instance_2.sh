@@ -186,8 +186,9 @@ password=${MYSQL_PASSWORD}
 host=localhost
 port=3306
 EOF
-
+    sudo chown ubuntu:ubuntu "$MYSQL_EXPORTER_CNF"
     sudo chmod 600 "$MYSQL_EXPORTER_CNF"
+
     fi
 
     # Create MySQL Exporter service
