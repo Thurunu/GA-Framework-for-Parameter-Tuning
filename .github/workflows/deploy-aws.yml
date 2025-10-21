@@ -45,7 +45,7 @@ jobs:
       - name: Copy files to Public Instance
         run: |
           rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
-          --include 'docker' \
+          --include 'docker/**' --include 'scripts/**' \
           --exclude '*' \
           ./ ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }}:${{ env.APP_DIR }}/
 

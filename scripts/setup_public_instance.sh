@@ -7,7 +7,7 @@ set -e
 PRIVATE_1_IP="${1}"
 PRIVATE_2_IP="${2}"
 APP_DIR="${3:-/home/ubuntu/ga-framework}"
-DOCKER_NETWORK="monitoring_network"
+# DOCKER_NETWORK="monitoring_network"
 
 echo "🚀 Setting up Public Instance with Docker and Prometheus..."
 
@@ -17,7 +17,7 @@ chmod +x install_docker.sh
 ./install_docker.sh
 
 # Create Docker network for monitoring
-sudo docker network create "$DOCKER_NETWORK" 2>/dev/null || echo "✓ Network $DOCKER_NETWORK already exists"
+# sudo docker network create "$DOCKER_NETWORK" 2>/dev/null || echo "✓ Network $DOCKER_NETWORK already exists"
 
 # Create Prometheus configuration directory
 mkdir -p "/home/ubuntu/prometheus"

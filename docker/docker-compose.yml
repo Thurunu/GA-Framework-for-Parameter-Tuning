@@ -7,7 +7,7 @@ services:
       - /home/ubuntu/prometheus:/etc/prometheus
     networks:
       - monitoring
-
+ 
   grafana:
     image: "grafana/grafana"
     ports:
