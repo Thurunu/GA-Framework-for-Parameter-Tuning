@@ -20,6 +20,9 @@ chmod +x install_docker.sh
 echo "Stopping all running Docker containers..."
 sudo docker stop $(sudo docker ps -q) 2>/dev/null || echo "✅ Stopped all running containers"
 
+# Remove old containers
+sudo docker rm $(sudo docker ps -aq) 2>/dev/null || echo "✅ Removed all stopped containers"
+
 # sudo docker network create "$DOCKER_NETWORK" 2>/dev/null || echo "✓ Network $DOCKER_NETWORK already exists"
 
 # Create Prometheus configuration directory
