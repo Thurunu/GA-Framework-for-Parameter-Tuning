@@ -30,6 +30,8 @@ mkdir -p "/home/ubuntu/prometheus"
 
 # Create Grafana data directory
 mkdir -p "/home/ubuntu/grafana"
+sudo chown -R 472:472 /home/ubuntu/grafana
+echo "✅ Created Prometheus and Grafana directories"
 
 # Create Prometheus configuration file
 cat > "/home/ubuntu/prometheus/prometheus.yml" << EOF

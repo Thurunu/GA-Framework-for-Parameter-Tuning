@@ -103,6 +103,10 @@ sudo systemctl restart mysql_exporter
 
 echo "✅ MySQL Exporter installed"
 
+# Setup python
+sudo apt-get -y update
+sudo apt-get -y install python3-venv python3-pip
+
 # Wait for services to start
 sleep 3
 
