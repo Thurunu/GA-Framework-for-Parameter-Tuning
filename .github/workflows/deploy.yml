@@ -21,70 +21,28 @@ jobs:
 
       - name: Setup SSH key
         run: |
-            set -e  # Exit on error, but we'll handle errors explicitly
-    
-            mkdir -p ~/.ssh
-            echo "✅ SSH directory created"
-            
-            # Create SSH key with proper formatting
-            echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key.pem
-            echo "" >> ~/.ssh/deploy_key.pem
-            chmod 600 ~/.ssh/deploy_key.pem
-            echo "✅ SSH key created"
-            
-            # Verify SSH key format
-            echo "🔍 Verifying SSH key format..."
-            if head -n 1 ~/.ssh/deploy_key.pem | grep -q "BEGIN.*PRIVATE KEY"; then
-            echo "✅ Key header looks valid"
-            else
-            echo "❌ Invalid key header"
-            head -n 1 ~/.ssh/deploy_key.pem
-            exit 1
-            fi
-            
-            if tail -n 2 ~/.ssh/deploy_key.pem | grep -q "END.*PRIVATE KEY"; then
-            echo "✅ Key footer looks valid"
-            else
-            echo "❌ Invalid key footer"
-            tail -n 2 ~/.ssh/deploy_key.pem
-            exit 1
-            fi
-            
-            # Check key permissions
-            ls -la ~/.ssh/deploy_key.pem
-            
-            # Add instances to known_hosts with error handling
-            echo "🔍 Attempting to scan SSH host keys..."
-            
-            echo "Scanning PUBLIC_INSTANCE_IP: ${{ secrets.PUBLIC_INSTANCE_IP }}"
-            if ssh-keyscan -H ${{ secrets.PUBLIC_INSTANCE_IP }} >> ~/.ssh/known_hosts 2>&1; then
-            echo "✅ Public instance key added"
-            else
-            echo "⚠️  Warning: Could not reach public instance for key scanning"
-            echo "   This may be normal if the instance is not yet accessible"
-            fi
-            
-            echo "Scanning PRIVATE_INSTANCE_1_IP: ${{ secrets.PRIVATE_INSTANCE_1_IP }}"
-            if ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_1_IP }} >> ~/.ssh/known_hosts 2>&1; then
-            echo "✅ Private instance 1 key added"
-            else
-            echo "⚠️  Warning: Could not reach private instance 1 for key scanning"
-            echo "   This is expected for private instances without public access"
-            fi
-            
-            echo "Scanning PRIVATE_INSTANCE_2_IP: ${{ secrets.PRIVATE_INSTANCE_2_IP }}"
-            if ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_2_IP }} >> ~/.ssh/known_hosts 2>&1; then
-            echo "✅ Private instance 2 key added"
-            else
-            echo "⚠️  Warning: Could not reach private instance 2 for key scanning"
-            echo "   This is expected for private instances without public access"
-            fi
-            
-            echo "✅ SSH keys configured for all instances"
+          set -e
+          set -i
+          mkdir -p ~/.ssh
+          echo "✅ SSH directory created"
+          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key.pem
+          echo "" >> ~/.ssh/deploy_key.pem
+
+          echo "✅ SSH key created"
+          chmod 600 ~/.ssh/deploy_key.pem
+          # Add all instances to known_hosts
+          
+          ssh-keyscan -H ${{ secrets.PUBLIC_INSTANCE_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_1_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_2_IP }} >> ~/.ssh/known_hosts
+          
+          echo "✅ SSH keys configured for all instances"
 
       - name: Test SSH connections
         run: |
           echo "Testing SSH connections..."
+          set -e
+          set -i
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "echo '✅ Public Instance connected'"
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "echo '✅ Private Instance 1 connected'"
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "echo '✅ Private Instance 2 connected'"
