@@ -8,37 +8,37 @@ NODE_EXPORTER_VERSION="1.8.2"
 
 echo "🚀 Setting up Private Instance 1 with Node Exporter..."
 
-# Check if Node Exporter is already installed and running
-if systemctl is-active --quiet node_exporter; then
+# Check if Node Exporter is already installed and running correctly
+if systemctl is-active --quiet node_exporter 2>/dev/null; then
     echo "✅ Node Exporter service is already running"
     
-    # Check if it's responding
-    if curl -s http://localhost:9100/metrics > /dev/null 2>&1; then
+    # Check if it's responding with metrics
+    if curl -sf http://localhost:9100/metrics >/dev/null; then
         echo "✅ Node Exporter is responding correctly"
-        echo "📊 Node Exporter endpoint: http://$(hostname -I | awk '{print $1}'):9100/metrics"
-        echo "⏭️  Skipping installation - everything is already configured"
+        echo "📊 Node Exporter metrics available at: http://$(hostname -I | awk '{print $1}'):9100/metrics"
         exit 0
     else
-        echo "⚠️  Service is running but not responding, reinstalling..."
-        sudo systemctl stop node_exporter
+        echo "⚠️  Service running but not responding, will reinstall..."
     fi
-elif [ -f /usr/local/bin/node_exporter ]; then
-    echo "⚠️  Node Exporter binary exists but service is not running, reconfiguring..."
 else
-    echo "📦 Node Exporter not found, proceeding with installation..."
+    echo "📦 Node Exporter not running, proceeding with installation..."
 fi
 
 # Download and install Node Exporter
 echo "Downloading Node Exporter v${NODE_EXPORTER_VERSION}..."
 cd /tmp
-wget -q https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+
+if [ ! -f "node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz" ]; then
+    wget -q https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+fi
 
 echo "Installing Node Exporter..."
 tar xzf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
 
-# Stop the service if it's running before copying
+# Stop existing service if running
 sudo systemctl stop node_exporter 2>/dev/null || true
 
+# Install binary
 sudo cp node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
 sudo chmod +x /usr/local/bin/node_exporter
 
@@ -47,7 +47,7 @@ rm -rf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64*
 
 # Create systemd service
 echo "Creating systemd service..."
-sudo tee /etc/systemd/system/node_exporter.service > /dev/null << 'SERVICEEOF'
+sudo tee /etc/systemd/system/node_exporter.service > /dev/null << 'EOF'
 [Unit]
 Description=Node Exporter
 Documentation=https://github.com/prometheus/node_exporter
@@ -62,26 +62,25 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-SERVICEEOF
+EOF
 
-# Start and enable Node Exporter
+# Start and enable service
 echo "Starting Node Exporter..."
 sudo systemctl daemon-reload
 sudo systemctl enable node_exporter
-sudo systemctl restart node_exporter
+sudo systemctl start node_exporter
 
-# Wait for service to start
-sleep 2
+# Wait for service to be ready
+sleep 3
 
-# Check status
+# Verify installation
 echo ""
-echo "✅ Node Exporter installed and running!"
-sudo systemctl status node_exporter --no-pager | head -10
-
-echo ""
-echo "📊 Node Exporter endpoint: http://$(hostname -I | awk '{print $1}'):9100/metrics"
-
-# Test endpoint
-echo ""
-echo "Testing metrics endpoint..."
-curl -s http://localhost:9100/metrics | head -5
+if systemctl is-active --quiet node_exporter && curl -sf http://localhost:9100/metrics >/dev/null; then
+    echo "✅ Node Exporter successfully installed and running!"
+    echo "📊 Metrics: http://$(hostname -I | awk '{print $1}'):9100/metrics"
+    curl -s http://localhost:9100/metrics | head -5
+else
+    echo "❌ Installation completed but service verification failed"
+    sudo systemctl status node_exporter --no-pager
+    exit 1
+fi
