@@ -18,11 +18,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
       - name: Debug SSH Key
         run: |
-            ls -l ~/.ssh/
-            file ~/.ssh/deploy_key.pem
-            head -5 ~/.ssh/deploy_key.pem
+          ls -l ~/.ssh/
+          file ~/.ssh/deploy_key.pem
+          head -5 ~/.ssh/deploy_key.pem
 
       - name: Setup SSH key
         run: |
