@@ -15,7 +15,9 @@ PRIVATE_1_IP="${2}"
 PRIVATE_2_IP="${3}"
 MYSQL_PASSWORD="${4}"
 APP_DIR="${5:-/home/ubuntu/ga-framework}"
-
+NODE_EXPORTER_SERVICE="/etc/systemd/system/node_exporter.service"
+MYSQL_EXPORTER_SERVICE="/etc/systemd/system/mysql_exporter.service"
+MYSQL_EXPORTER_CNF="/etc/.mysqld_exporter.cnf"
 NODE_EXPORTER_VERSION="1.8.2"
 MYSQL_EXPORTER_VERSION="0.15.1"
 
@@ -32,10 +34,10 @@ MYSQL_NEEDS_INSTALL=false
 
 if ! systemctl is-active mysql 2>/dev/null; then
     echo "📦 MySQL is not running"
-    MYSQL_NEEDS_INSTALL=true
-elif ! sudo mysql -e "USE ga_optimization_db;" 2>/dev/null; then
+    MYSQL_NEEDS_INSTALL=false
+elif sudo mysql -e "USE ga_optimization_db;" 2>/dev/null; then
     echo "⚠️  MySQL running but ga_optimization_db doesn't exist"
-    MYSQL_NEEDS_INSTALL=true
+    MYSQL_NEEDS_INSTALL=false
 elif ! sudo mysql -e "SELECT User FROM mysql.user WHERE User='ga_app_user';" 2>/dev/null | grep -q "ga_app_user"; then
     echo "⚠️  MySQL running but ga_app_user doesn't exist"
     MYSQL_NEEDS_INSTALL=true
@@ -69,7 +71,7 @@ elif ! python3 -m venv --help &>/dev/null 2>&1; then
     PYTHON_NEEDS_INSTALL=true
 elif [ ! -d "$APP_DIR/venv" ]; then
     echo "📦 Virtual environment doesn't exist at $APP_DIR/venv"
-    PYTHON_NEEDS_INSTALL=true
+    PYTHON_NEEDS_INSTALL=false
 else
     echo "✅ Python3 and virtual environment already configured"
 fi
@@ -110,7 +112,10 @@ else
     rm -rf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64*
 
     # Create Node Exporter service
-    sudo tee /etc/systemd/system/node_exporter.service >/dev/null <<'EOF'
+if [ ! -s "$NODE_EXPORTER_SERVICE" ]; then
+    echo "📄 Creating Node Exporter systemd service..."
+    sudo tee "$NODE_EXPORTER_SERVICE" >/dev/null <<'EOF'
+
 [Unit]
 Description=Node Exporter
 Documentation=https://github.com/prometheus/node_exporter
@@ -127,6 +132,9 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
+else
+    echo "✅ Node Exporter service file already exists and is not empty — skipping creation"
+fi
     sudo systemctl daemon-reload
     sudo systemctl enable node_exporter
     sudo systemctl start node_exporter
@@ -169,7 +177,9 @@ else
     rm -rf mysqld_exporter-${MYSQL_EXPORTER_VERSION}.linux-amd64*
 
     # Create MySQL Exporter configuration
-    sudo tee /etc/.mysqld_exporter.cnf >/dev/null <<EOF
+    if [ ! -s "$MYSQL_EXPORTER_CNF" ]; then
+    echo "📄 Creating MySQL Exporter systemd service..."
+    sudo tee "$MYSQL_EXPORTER_CNF" >/dev/null <<EOF
 [client]
 user=ga_app_user
 password=${MYSQL_PASSWORD}
@@ -177,10 +187,13 @@ host=localhost
 port=3306
 EOF
 
-    sudo chmod 600 /etc/.mysqld_exporter.cnf
+    sudo chmod 600 "$MYSQL_EXPORTER_CNF"
+    fi
 
     # Create MySQL Exporter service
-    sudo tee /etc/systemd/system/mysql_exporter.service >/dev/null <<'EOF'
+    if [ ! -s "$MYSQL_EXPORTER_SERVICE" ]; then
+    echo "📄 Creating MySQL Exporter systemd service..."
+    sudo tee "$MYSQL_EXPORTER_SERVICE" >/dev/null <<'EOF'
 [Unit]
 Description=MySQL Exporter
 Documentation=https://github.com/prometheus/mysqld_exporter
@@ -196,6 +209,9 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
+else 
+    echo "✅ MySQL Exporter service file already exists and is not empty — skipping creation"
+fi
 
     sudo systemctl daemon-reload
     sudo systemctl enable mysql_exporter
@@ -203,7 +219,7 @@ EOF
     
     sleep 2
     
-    if systemctl is-active --quiet mysql_exporter; then
+    if systemctl is-active mysql_exporter; then
         echo "✅ MySQL Exporter installed and running"
     else
         echo "❌ MySQL Exporter failed to start"
