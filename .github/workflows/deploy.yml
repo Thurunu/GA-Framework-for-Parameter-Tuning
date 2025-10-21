@@ -23,7 +23,9 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "✅ SSH directory created"
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
+          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key.pem
+          echo "" >> ~/.ssh/deploy_key.pem
+
           echo "✅ SSH key created"
           chmod 600 ~/.ssh/deploy_key.pem
           
