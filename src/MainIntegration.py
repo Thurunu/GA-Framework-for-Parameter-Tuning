@@ -13,7 +13,8 @@ from dataclasses import dataclass
 # Import framework components
 from src.BayesianOptimzation import BayesianOptimizer, OptimizationResult
 from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult
-from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy, HybridOptimizationResult
+from HybridOptimizationEngine import HybridOptimizationEngine, HybridOptimizationResult
+from WorkloadCharacterizer import OptimizationStrategy
 from PerformanceMonitor import PerformanceMonitor, PerformanceMetrics
 from KernelParameterInterface import KernelParameterInterface, KernelParameter
 

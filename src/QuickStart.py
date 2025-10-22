@@ -45,7 +45,8 @@ def run_example_optimization():
     
     try:
         # Import necessary components
-        from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
+        from HybridOptimizationEngine import HybridOptimizationEngine
+        from WorkloadCharacterizer import OptimizationStrategy
         import numpy as np
         
         # Define test parameter bounds

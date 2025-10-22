@@ -20,7 +20,8 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ProcessWorkloadDetector import ProcessWorkloadDetector
-from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
+from HybridOptimizationEngine import HybridOptimizationEngine
+from WorkloadCharacterizer import OptimizationStrategy
 from PerformanceMonitor import PerformanceMonitor
 from KernelParameterInterface import KernelParameterInterface
 from ProcessPriorityManager import ProcessPriorityManager
