@@ -7,111 +7,11 @@ Monitors running processes and classifies workload types
 import psutil
 import time
 import threading
-import yaml
-from typing import Dict, List, Set, Optional
-from dataclasses import dataclass
+from typing import Dict, List
 from collections import defaultdict, deque
-from pathlib import Path
-import re
 
-@dataclass
-class ProcessInfo:
-    """Information about a running process"""
-    pid: int
-    name: str
-    cmdline: str
-    cpu_percent: float
-    memory_percent: float
-    io_read_bytes: int
-    io_write_bytes: int
-    network_connections: int
-    start_time: float
-    workload_type: str = "unknown"
-
-class WorkloadClassifier:
-    """Classifies processes into workload types"""
-    
-    def __init__(self, config_file: str = None):
-        """
-        Initialize workload classifier with patterns from YAML
-        
-        Args:
-            config_file: Path to workload patterns YAML file
-        """
-        self.workload_patterns = {}
-        self.fallback_thresholds = {}
-        self._load_patterns(config_file)
-    
-    def _load_patterns(self, config_file: str = None):
-        """Load workload patterns from YAML configuration file"""
-        if config_file is None:
-            # Default to config/workload_patterns.yml relative to project root
-            current_dir = Path(__file__).parent
-            config_file = current_dir.parent / "config" / "workload_patterns.yml"
-        
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
-            
-            # Load patterns
-            for workload_name, workload_data in config['patterns'].items():
-                self.workload_patterns[workload_name] = workload_data['process_patterns']
-            
-            # Load fallback thresholds
-            self.fallback_thresholds = config.get('fallback_thresholds', {})
-            
-            print(f"Loaded {len(self.workload_patterns)} workload patterns")
-            
-        except FileNotFoundError:
-            print(f"Warning: Configuration file {config_file} not found. Using default patterns.")
-            self._load_default_patterns()
-        except Exception as e:
-            print(f"Error loading workload patterns: {e}")
-            print("Falling back to default patterns.")
-            self._load_default_patterns()
-    
-    def _load_default_patterns(self):
-        """Load default patterns as fallback"""
-        self.workload_patterns = {
-            'database': [r'mysql.*', r'postgres.*', r'mongodb.*', r'redis.*'],
-            'web_server': [r'nginx.*', r'apache.*', r'httpd.*', r'node.*'],
-            'general': [r'.*']
-        }
-        self.fallback_thresholds = {
-            'cpu_intensive': {'cpu_percent': 80},
-            'memory_intensive': {'memory_percent': 50},
-            'io_intensive': {'io_bytes_per_second': 1000000},
-            'network_intensive': {'connection_count': 10}
-        }
-    
-    def classify_process(self, proc_info: ProcessInfo) -> str:
-        """Classify process based on name and command line"""
-        full_cmd = f"{proc_info.name} {proc_info.cmdline}".lower()
-        
-        # Try pattern matching first
-        for workload_type, patterns in self.workload_patterns.items():
-            for pattern in patterns:
-                if re.search(pattern, full_cmd):
-                    return workload_type
-        
-        # Fallback to resource-based classification
-        cpu_threshold = self.fallback_thresholds.get('cpu_intensive', {}).get('cpu_percent', 80)
-        if proc_info.cpu_percent > cpu_threshold:
-            return 'cpu_intensive'
-        
-        memory_threshold = self.fallback_thresholds.get('memory_intensive', {}).get('memory_percent', 50)
-        if proc_info.memory_percent > memory_threshold:
-            return 'memory_intensive'
-        
-        io_threshold = self.fallback_thresholds.get('io_intensive', {}).get('io_bytes_per_second', 1000000)
-        if proc_info.io_read_bytes + proc_info.io_write_bytes > io_threshold:
-            return 'io_intensive'
-        
-        network_threshold = self.fallback_thresholds.get('network_intensive', {}).get('connection_count', 10)
-        if proc_info.network_connections > network_threshold:
-            return 'network_intensive'
-        
-        return 'general'
+# Import WorkloadClassifier from separate module
+from WorkloadClassifier import WorkloadClassifier, ProcessInfo
 
 class ProcessWorkloadDetector:
     """Monitors system processes and detects workload changes"""

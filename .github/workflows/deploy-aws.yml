@@ -62,11 +62,10 @@ jobs:
       
       - name: Copy files to Private Instance 3
         run: |
-          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_3_IP }} "mkdir -p ${{ env.APP_DIR }}"
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "mkdir -p ${{ env.APP_DIR }}"
           rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
-          --include='scripts/' --include='scripts/**' \
-          --exclude='*' \
-          ./ ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_3_IP }}:${{ env.APP_DIR }}/
+            --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude '.github' --exclude 'docker' \
+            ./ ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }}:${{ env.APP_DIR }}/
       - name: Copy files to Private Instance 2
         run: |
           ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "mkdir -p ${{ env.APP_DIR }}"

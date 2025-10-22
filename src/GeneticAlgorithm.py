@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
 Linux Kernel Optimization Framework - Genetic Algorithm
-This module implements Genetic Algorithm for kernel parameter optimization
+This module implements Genetic Algorithm for kernel parameter optimization using PyGAD
 """
 
 import numpy as np
 import json
 import time
-import random
 from typing import Dict, List, Tuple, Optional, Callable, Any
 from dataclasses import dataclass
 import copy
+import pygad
+
 
 @dataclass
 class Individual:
@@ -19,7 +20,8 @@ class Individual:
     fitness: Optional[float] = None
     age: int = 0
 
-@dataclass 
+
+@dataclass
 class GAOptimizationResult:
     """Results from Genetic Algorithm optimization"""
     best_individual: Individual
@@ -30,9 +32,10 @@ class GAOptimizationResult:
     convergence_reached: bool
     optimization_time: float
 
+
 class GeneticAlgorithm:
-    """Genetic Algorithm for kernel parameter optimization"""
-    
+    """Genetic Algorithm for kernel parameter optimization using PyGAD"""
+
     def __init__(self, parameter_bounds: Dict[str, Tuple[float, float]],
                  population_size: int = 50,
                  max_generations: int = 100,
@@ -47,213 +50,159 @@ class GeneticAlgorithm:
                  diversity_injection: bool = False,
                  random_seed: int = 42):
         """
-        Initialize Genetic Algorithm
-        
+        Initialize Genetic Algorithm using PyGAD
+
         Args:
             parameter_bounds: Dict of parameter names to (min, max) bounds
             population_size: Size of the population
             max_generations: Maximum number of generations
-            mutation_rate: Probability of mutation
-            crossover_rate: Probability of crossover
+            mutation_rate: Probability of mutation (percentage)
+            crossover_rate: Probability of crossover (not directly used in PyGAD)
             elitism_ratio: Ratio of best individuals to preserve
             tournament_size: Size of tournament selection
             convergence_threshold: Convergence threshold
             convergence_patience: Generations to wait for improvement
             adaptive_parameters: Enable adaptive mutation rate adjustment
-            local_search: Enable local search optimization on offspring
-            diversity_injection: Enable periodic diversity injection
+            local_search: Enable local search optimization (reserved for future)
+            diversity_injection: Enable periodic diversity injection (reserved for future)
             random_seed: Random seed for reproducibility
         """
         self.parameter_bounds = parameter_bounds
         self.parameter_names = list(parameter_bounds.keys())
-        self.bounds_array = np.array([parameter_bounds[name] for name in self.parameter_names])
-        
+
+        # Extract bounds for PyGAD
+        self.gene_space = [
+            {'low': bounds[0], 'high': bounds[1]}
+            for bounds in parameter_bounds.values()
+        ]
+
         self.population_size = population_size
         self.max_generations = max_generations
         self.mutation_rate = mutation_rate
-        self.initial_mutation_rate = mutation_rate  # Store initial rate for adaptive mutation
+        self.initial_mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
         self.elitism_ratio = elitism_ratio
         self.tournament_size = tournament_size
         self.convergence_threshold = convergence_threshold
         self.convergence_patience = convergence_patience
-        
-        # Advanced features
+
+        # Advanced features (stored for compatibility)
         self.adaptive_parameters = adaptive_parameters
         self.local_search = local_search
         self.diversity_injection = diversity_injection
-        
-        # Set random seeds
-        random.seed(random_seed)
-        np.random.seed(random_seed)
-        
-        # Initialize population and tracking variables
-        self.population = []
+
+        self.random_seed = random_seed
+
+        # Tracking variables
         self.best_individual = None
         self.best_fitness = -np.inf
         self.generation_count = 0
         self.fitness_history = []
         self.population_history = []
         self.stagnation_count = 0
-        
+        self.objective_function = None
+
+        # PyGAD instance (will be created during optimization)
+        self.ga_instance = None
+
         # Elite size calculation
-        self.elite_size = max(1, int(self.population_size * self.elitism_ratio))
-    
-    def _create_random_individual(self) -> Individual:
-        """Create a random individual within parameter bounds"""
-        parameters = {}
-        for i, param_name in enumerate(self.parameter_names):
-            min_val, max_val = self.bounds_array[i]
-            parameters[param_name] = np.random.uniform(min_val, max_val)
-        
-        return Individual(parameters=parameters)
-    
-    def _initialize_population(self):
-        """Initialize the population with random individuals"""
-        self.population = []
-        for _ in range(self.population_size):
-            individual = self._create_random_individual()
-            self.population.append(individual)
-    
-    def _evaluate_individual(self, individual: Individual, objective_function: Callable) -> float:
-        """Evaluate fitness of an individual"""
-        if individual.fitness is None:
-            try:
-                individual.fitness = objective_function(individual.parameters)
-            except Exception as e:
-                print(f"Error evaluating individual: {e}")
-                individual.fitness = -np.inf
-        return individual.fitness
-    
-    def _evaluate_population(self, objective_function: Callable):
-        """Evaluate fitness for entire population"""
-        for individual in self.population:
-            self._evaluate_individual(individual, objective_function)
-    
-    def _tournament_selection(self) -> Individual:
-        """Tournament selection to choose parent"""
-        tournament = random.sample(self.population, min(self.tournament_size, len(self.population)))
-        return max(tournament, key=lambda x: x.fitness if x.fitness is not None else -np.inf)
-    
-    def _crossover(self, parent1: Individual, parent2: Individual) -> Tuple[Individual, Individual]:
-        """Crossover operation to create offspring"""
-        if random.random() > self.crossover_rate:
-            # No crossover, return copies of parents
-            return copy.deepcopy(parent1), copy.deepcopy(parent2)
-        
-        # Arithmetic crossover
-        alpha = random.random()
-        
-        child1_params = {}
-        child2_params = {}
-        
-        for param_name in self.parameter_names:
-            p1_val = parent1.parameters[param_name]
-            p2_val = parent2.parameters[param_name]
-            
-            child1_params[param_name] = alpha * p1_val + (1 - alpha) * p2_val
-            child2_params[param_name] = (1 - alpha) * p1_val + alpha * p2_val
-            
-            # Ensure bounds are respected
-            min_val, max_val = self.parameter_bounds[param_name]
-            child1_params[param_name] = np.clip(child1_params[param_name], min_val, max_val)
-            child2_params[param_name] = np.clip(child2_params[param_name], min_val, max_val)
-        
-        child1 = Individual(parameters=child1_params)
-        child2 = Individual(parameters=child2_params)
-        
-        return child1, child2
-    
-    def _mutate(self, individual: Individual) -> Individual:
-        """Mutation operation"""
-        mutated_individual = copy.deepcopy(individual)
-        
-        for param_name in self.parameter_names:
-            if random.random() < self.mutation_rate:
-                min_val, max_val = self.parameter_bounds[param_name]
-                current_val = mutated_individual.parameters[param_name]
-                
-                # Gaussian mutation with adaptive step size
-                range_size = max_val - min_val
-                mutation_strength = range_size * 0.1  # 10% of parameter range
-                
-                new_val = current_val + np.random.normal(0, mutation_strength)
-                new_val = np.clip(new_val, min_val, max_val)
-                
-                mutated_individual.parameters[param_name] = new_val
-        
-        # Reset fitness as parameters have changed
-        mutated_individual.fitness = None
-        return mutated_individual
-    
-    def _select_survivors(self, population: List[Individual], objective_function: Callable) -> List[Individual]:
-        """Select survivors for next generation using elitism and tournament selection"""
-        # Evaluate all individuals
-        for individual in population:
-            if individual.fitness is None:
-                self._evaluate_individual(individual, objective_function)
-        
-        # Sort population by fitness (descending)
-        population.sort(key=lambda x: x.fitness if x.fitness is not None else -np.inf, reverse=True)
-        
-        # Keep elite individuals
-        survivors = population[:self.elite_size].copy()
-        
-        # Fill remaining spots with tournament selection
-        while len(survivors) < self.population_size:
-            selected = self._tournament_selection()
-            survivors.append(copy.deepcopy(selected))
-        
-        # Age individuals
-        for individual in survivors:
-            individual.age += 1
-        
-        return survivors[:self.population_size]
-    
+        self.elite_size = max(
+            1, int(self.population_size * self.elitism_ratio))
+
+    def _solution_to_dict(self, solution: np.ndarray) -> Dict[str, float]:
+        """Convert PyGAD solution array to parameter dictionary"""
+        return {name: float(value) for name, value in zip(self.parameter_names, solution)}
+
+    def _dict_to_solution(self, params: Dict[str, float]) -> np.ndarray:
+        """Convert parameter dictionary to PyGAD solution array"""
+        return np.array([params[name] for name in self.parameter_names])
+
+    def _fitness_wrapper(self, ga_instance, solution, solution_idx):
+        """Wrapper for objective function to match PyGAD interface"""
+        try:
+            params = self._solution_to_dict(solution)
+            fitness = self.objective_function(params)
+            return fitness
+        except Exception as e:
+            print(f"Error evaluating solution: {e}")
+            return -np.inf
+
+    def _on_generation(self, ga_instance):
+        """Callback called after each generation"""
+        generation = ga_instance.generations_completed
+
+        # Get best solution
+        solution, fitness, _ = ga_instance.best_solution()
+
+        # Update tracking
+        if fitness > self.best_fitness:
+            self.best_fitness = fitness
+            self.best_individual = Individual(
+                parameters=self._solution_to_dict(solution),
+                fitness=fitness
+            )
+
+        self.fitness_history.append(self.best_fitness)
+        self.generation_count = generation
+
+        # Store population snapshot (convert to Individual objects)
+        population_snapshot = []
+        for idx in range(len(ga_instance.population)):
+            ind_params = self._solution_to_dict(ga_instance.population[idx])
+            ind_fitness = ga_instance.last_generation_fitness[idx] if hasattr(
+                ga_instance, 'last_generation_fitness') else None
+            population_snapshot.append(Individual(
+                parameters=ind_params, fitness=ind_fitness))
+        self.population_history.append(population_snapshot)
+
+        # Print progress
+        stats = self._get_population_statistics(ga_instance)
+        print(f"Generation {generation}: "
+              f"Best = {self.best_fitness:.6f}, "
+              f"Mean = {stats['mean']:.6f}, "
+              f"Std = {stats['std']:.6f}")
+
+        # Adaptive mutation (if enabled)
+        if self.adaptive_parameters:
+            self.adaptive_mutation(generation, ga_instance)
+
+        # Check convergence
+        if self._check_convergence():
+            print(f"Convergence reached at generation {generation}")
+            return "stop"  # Signal PyGAD to stop
+
     def _check_convergence(self) -> bool:
         """Check if algorithm has converged"""
         if len(self.fitness_history) < self.convergence_patience:
             return False
-        
-        recent_best = max(
-            self.fitness_history[
-                -self.convergence_patience:
-            ]
-        )
-    
+
+        recent_best = max(self.fitness_history[-self.convergence_patience:])
+
         prev_start = -2 * self.convergence_patience
         prev_end = -self.convergence_patience
         prev_slice = self.fitness_history[prev_start:prev_end]
-       
+
         if len(prev_slice) == 0:
             previous_best = recent_best
         else:
             previous_best = max(prev_slice)
+
         improvement = recent_best - previous_best
-        print("Imrpovment: ", improvement)
-        
+
         if abs(improvement) < self.convergence_threshold:
             self.stagnation_count += 1
         else:
             self.stagnation_count = 0
-        
+
         return self.stagnation_count >= self.convergence_patience
-    
-    def _update_best(self):
-        """Update best individual and fitness"""
-        current_best = max(self.population, key=lambda x: x.fitness if x.fitness is not None else -np.inf)
-        
-        if current_best.fitness is not None and current_best.fitness > self.best_fitness:
-            self.best_individual = copy.deepcopy(current_best)
-            self.best_fitness = current_best.fitness
-    
-    def _get_population_statistics(self) -> Dict[str, float]:
+
+    def _get_population_statistics(self, ga_instance=None) -> Dict[str, float]:
         """Get statistics about current population"""
-        fitnesses = [ind.fitness for ind in self.population if ind.fitness is not None]
-        
-        if not fitnesses:
-            return {"mean": 0, "std": 0, "min": 0, "max": 0}
-        
+        if ga_instance is None or not hasattr(ga_instance, 'last_generation_fitness'):
+            return {"mean": 0, "std": 0, "min": 0, "max": 0, "median": 0}
+
+        fitnesses = ga_instance.last_generation_fitness
+
         return {
             "mean": np.mean(fitnesses),
             "std": np.std(fitnesses),
@@ -261,118 +210,68 @@ class GeneticAlgorithm:
             "max": np.max(fitnesses),
             "median": np.median(fitnesses)
         }
-    
-    def optimize(self, objective_function: Callable[[Dict[str, float]], float], 
+
+    def optimize(self, objective_function: Callable[[Dict[str, float]], float],
                  use_advanced_features: bool = None) -> GAOptimizationResult:
         """
-        Run genetic algorithm optimization with optional advanced features
-        
+        Run genetic algorithm optimization using PyGAD
+
         Args:
             objective_function: Function to maximize (higher is better)
-            use_advanced_features: Enable adaptive parameters, local search, diversity injection.
-                                   If None, auto-detect based on instance settings.
-        
+            use_advanced_features: Enable adaptive parameters (PyGAD has built-in features)
+
         Returns:
             GAOptimizationResult with optimization results
         """
         start_time = time.time()
-        
+        self.objective_function = objective_function
+
         # Auto-detect if we should use advanced features
         if use_advanced_features is None:
-            use_advanced_features = (
-                self.adaptive_parameters or 
-                self.local_search or 
-                self.diversity_injection
-            )
-        
-        # Print configuration
+            use_advanced_features = self.adaptive_parameters
+
+        print(
+            f"Starting Genetic Algorithm with {self.max_generations} generations...")
+        print(f"Population size: {self.population_size}")
+        print(f"Mutation rate: {self.mutation_rate * 100}%")
+        print(f"Elite size: {self.elite_size}")
         if use_advanced_features:
-            print(f"Starting Advanced Genetic Algorithm with {self.max_generations} generations...")
-            if self.adaptive_parameters:
-                print(f"  • Adaptive mutation enabled")
-            if self.local_search:
-                print(f"  • Local search enabled (10% chance)")
-            if self.diversity_injection:
-                print(f"  • Diversity injection enabled (every 20 generations)")
-        else:
-            print(f"Starting Genetic Algorithm with {self.max_generations} generations...")
-            print(f"Population size: {self.population_size}")
-            print(f"Mutation rate: {self.mutation_rate}")
-            print(f"Crossover rate: {self.crossover_rate}")
-        
-        # Initialize population
-        self._initialize_population()
-        self._evaluate_population(objective_function)
-        self._update_best()
-        
-        # Evolution loop
-        for generation in range(self.max_generations):
-            self.generation_count = generation + 1
-            
-            # Adaptive parameters (advanced feature)
-            if use_advanced_features and self.adaptive_parameters:
-                self.adaptive_mutation(generation)
-            
-            # Create next generation
-            new_population = []
-            
-            # Generate offspring
-            while len(new_population) < self.population_size - self.elite_size:
-                parent1 = self._tournament_selection()
-                parent2 = self._tournament_selection()
-                
-                child1, child2 = self._crossover(parent1, parent2)
-                child1 = self._mutate(child1)
-                child2 = self._mutate(child2)
-                
-                # Apply local search to some offspring (advanced feature)
-                if use_advanced_features and self.local_search and random.random() < 0.1:  # 10% chance
-                    child1 = self._local_search_optimization(child1, objective_function)
-                
-                new_population.extend([child1, child2])
-            
-            # Combine with current population for survival selection
-            combined_population = self.population + new_population
-            self.population = self._select_survivors(combined_population, objective_function)
-            
-            # Diversity injection (advanced feature)
-            if use_advanced_features and self.diversity_injection and generation % 20 == 0:
-                self.inject_diversity()
-            
-            # Update tracking
-            self._update_best()
-            self.fitness_history.append(self.best_fitness)
-            self.population_history.append([copy.deepcopy(ind) for ind in self.population])
-            
-            # Print progress
-            stats = self._get_population_statistics()
-            if use_advanced_features:
-                # Print with advanced metrics
-                diversity = self.get_diversity_metrics()
-                print(f"Generation {generation + 1}: "
-                      f"Best = {self.best_fitness:.6f}, "
-                      f"Mean = {stats['mean']:.6f}, "
-                      f"Diversity = {diversity['overall_diversity']:.4f}, "
-                      f"MutRate = {self.mutation_rate:.4f}")
-            else:
-                # Print basic metrics
-                print(f"Generation {generation + 1}: "
-                      f"Best = {self.best_fitness:.6f}, "
-                      f"Mean = {stats['mean']:.6f}, "
-                      f"Std = {stats['std']:.6f}")
-            
-            # Check convergence
-            if self._check_convergence():
-                print(f"Convergence reached at generation {generation + 1}")
-                break
-        
+            print(f"  • Adaptive mutation enabled")
+
+        # Configure PyGAD
+        self.ga_instance = pygad.GA(
+            num_generations=self.max_generations,
+            num_parents_mating=max(2, self.population_size - self.elite_size),
+            fitness_func=self._fitness_wrapper,
+            sol_per_pop=self.population_size,
+            num_genes=len(self.parameter_names),
+            gene_space=self.gene_space,
+            parent_selection_type="tournament",
+            K_tournament=self.tournament_size,
+            keep_elitism=self.elite_size,
+            crossover_type="single_point",
+            mutation_type="random",
+            mutation_percent_genes=int(
+                self.mutation_rate * 100),  # PyGAD uses percentage
+            random_seed=self.random_seed,
+            on_generation=self._on_generation,
+            suppress_warnings=True
+        )
+
+        # Run optimization
+        self.ga_instance.run()
+
+        # Get final results
+        solution, fitness, _ = self.ga_instance.best_solution()
+
         optimization_time = time.time() - start_time
         convergence_reached = self.stagnation_count >= self.convergence_patience
-        
-        print(f"Optimization completed in {optimization_time:.2f} seconds")
+
+        print(f"\nOptimization completed in {optimization_time:.2f} seconds")
         print(f"Best fitness: {self.best_fitness:.6f}")
-        print(f"Best parameters: {self.best_individual.parameters if self.best_individual else None}")
-        
+        print(
+            f"Best parameters: {self.best_individual.parameters if self.best_individual else None}")
+
         return GAOptimizationResult(
             best_individual=self.best_individual,
             best_fitness=self.best_fitness,
@@ -382,30 +281,42 @@ class GeneticAlgorithm:
             convergence_reached=convergence_reached,
             optimization_time=optimization_time
         )
-    
+
     def get_diversity_metrics(self) -> Dict[str, float]:
         """Calculate population diversity metrics"""
-        if not self.population:
-            return {"diversity": 0}
-        
+        if self.ga_instance is None or not hasattr(self.ga_instance, 'population'):
+            return {"overall_diversity": 0, "parameter_diversities": {}, "fitness_diversity": 0}
+
+        population = self.ga_instance.population
+
         # Calculate parameter diversity
         diversities = []
-        
-        for param_name in self.parameter_names:
-            values = [ind.parameters[param_name] for ind in self.population]
-            diversity = np.std(values) / (self.parameter_bounds[param_name][1] - self.parameter_bounds[param_name][0])
+        param_diversities = {}
+
+        for i, param_name in enumerate(self.parameter_names):
+            values = population[:, i]
+            param_range = self.parameter_bounds[param_name][1] - \
+                self.parameter_bounds[param_name][0]
+            diversity = np.std(values) / param_range if param_range > 0 else 0
             diversities.append(diversity)
-        
+            param_diversities[param_name] = diversity
+
+        # Fitness diversity
+        fitness_diversity = 0
+        if hasattr(self.ga_instance, 'last_generation_fitness'):
+            fitness_diversity = np.std(
+                self.ga_instance.last_generation_fitness)
+
         return {
             "overall_diversity": np.mean(diversities),
-            "parameter_diversities": dict(zip(self.parameter_names, diversities)),
-            "fitness_diversity": np.std([ind.fitness for ind in self.population if ind.fitness is not None])
+            "parameter_diversities": param_diversities,
+            "fitness_diversity": fitness_diversity
         }
-    
+
     def export_results(self, filename: str):
         """Export optimization results to JSON file"""
         diversity = self.get_diversity_metrics()
-        
+
         results_data = {
             "optimization_settings": {
                 "parameter_bounds": self.parameter_bounds,
@@ -418,86 +329,117 @@ class GeneticAlgorithm:
             "best_result": {
                 "parameters": self.best_individual.parameters if self.best_individual else None,
                 "fitness": self.best_fitness,
-                "generation_found": self.fitness_history.index(self.best_fitness) + 1 if self.fitness_history else 0
+                "generation_found": self.fitness_history.index(self.best_fitness) + 1 if self.best_fitness in self.fitness_history else 0
             },
             "optimization_progress": {
                 "generations": self.generation_count,
                 "fitness_history": self.fitness_history,
                 "final_diversity": diversity
             },
-            "population_statistics": self._get_population_statistics()
+            "population_statistics": self._get_population_statistics(self.ga_instance)
         }
-        
+
         with open(filename, 'w') as f:
             json.dump(results_data, f, indent=2)
-        
+
         print(f"Results exported to {filename}")
-    
-    def adaptive_mutation(self, generation: int):
+
+    def adaptive_mutation(self, generation: int, ga_instance=None):
         """Adaptive mutation rate based on generation"""
+        if not self.adaptive_parameters:
+            return
+
         # Decrease mutation rate over time
         initial_rate = 0.2
         final_rate = 0.05
-        decay_factor = (final_rate / initial_rate) ** (1 / self.max_generations)
-        self.mutation_rate = initial_rate * (decay_factor ** generation)
-    
+        decay_factor = (final_rate / initial_rate) ** (1 /
+                                                       self.max_generations)
+        new_rate = initial_rate * (decay_factor ** generation)
+
+        self.mutation_rate = new_rate
+
+        # Update PyGAD instance if available
+        if ga_instance is not None:
+            ga_instance.mutation_percent_genes = int(new_rate * 100)
+
     def inject_diversity(self, diversity_threshold: float = 0.01):
-        """Inject diversity if population becomes too similar"""
+        """
+        Inject diversity if population becomes too similar.
+        Note: PyGAD handles diversity internally, this is kept for API compatibility.
+        """
         diversity = self.get_diversity_metrics()
-        
+
         if diversity["overall_diversity"] < diversity_threshold:
-            print(f"Low diversity detected ({diversity['overall_diversity']:.4f}), injecting new individuals...")
-            
-            # Replace worst 25% of population with random individuals
-            self.population.sort(key=lambda x: x.fitness if x.fitness is not None else -np.inf)
-            num_to_replace = max(1, self.population_size // 4)
-            
-            for i in range(num_to_replace):
-                self.population[i] = self._create_random_individual()
+            print(
+                f"Low diversity detected ({diversity['overall_diversity']:.4f})")
+            # PyGAD handles this through its mutation and crossover mechanisms
+
+    def save_model(self, filename: str):
+        """Save the PyGAD instance to a file"""
+        if self.ga_instance is None:
+            print("No GA instance to save")
+            return
+
+        self.ga_instance.save(filename)
+        print(f"Model saved to {filename}")
+
+    def load_model(self, filename: str):
+        """Load a saved PyGAD instance"""
+        self.ga_instance = pygad.load(filename)
+        print(f"Model loaded from {filename}")
+
 
 # Advanced Genetic Algorithm with additional features
 class AdvancedGeneticAlgorithm(GeneticAlgorithm):
-    """Enhanced Genetic Algorithm with advanced features"""
-    
+    """
+    Enhanced Genetic Algorithm with advanced features.
+    This class uses PyGAD's built-in advanced capabilities.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Enable advanced features by default
         self.adaptive_parameters = True
-        self.diversity_injection = True
-        self.local_search = False  # Can be enabled for hybrid approach
-    
+        self.diversity_injection = False  # PyGAD handles diversity internally
+        self.local_search = False  # Reserved for future hybrid approaches
+
     def _local_search_optimization(self, individual: Individual, objective_function: Callable) -> Individual:
-        """Apply local search to improve individual (hill climbing)"""
+        """
+        Apply local search to improve individual (hill climbing).
+        Note: This is kept for API compatibility but not actively used with PyGAD.
+        """
         if not self.local_search:
             return individual
-        
+
+        # Simple hill climbing (can be extended)
         current_individual = copy.deepcopy(individual)
         best_individual = copy.deepcopy(individual)
-        
+
         for _ in range(5):  # 5 local search iterations
-            # Try small modifications
             for param_name in self.parameter_names:
                 min_val, max_val = self.parameter_bounds[param_name]
                 current_val = current_individual.parameters[param_name]
-                
-                # Try small positive and negative changes
+
+                # Try small modifications
                 range_size = max_val - min_val
                 step_size = range_size * 0.01  # 1% of range
-                
+
                 for delta in [-step_size, step_size]:
                     new_val = np.clip(current_val + delta, min_val, max_val)
-                    
+
                     # Create test individual
                     test_params = current_individual.parameters.copy()
                     test_params[param_name] = new_val
-                    test_individual = Individual(parameters=test_params)
-                    
+
                     # Evaluate
                     test_fitness = objective_function(test_params)
-                    
+
                     if test_fitness > (best_individual.fitness or -np.inf):
-                        best_individual = Individual(parameters=test_params, fitness=test_fitness)
-        
+                        best_individual = Individual(
+                            parameters=test_params, fitness=test_fitness)
+
         return best_individual
+
 
 # Example usage and testing
 if __name__ == "__main__":
@@ -508,7 +450,7 @@ if __name__ == "__main__":
         'net.core.rmem_max': (8192, 1048576),
         'kernel.sched_min_granularity_ns': (1000000, 50000000)
     }
-    
+
     # Create mock objective function
     def mock_objective_function(params: Dict[str, float]) -> float:
         """Mock objective function for testing"""
@@ -516,26 +458,27 @@ if __name__ == "__main__":
         dirty_ratio = params['vm.dirty_ratio']
         rmem_max = params['net.core.rmem_max']
         sched_gran = params['kernel.sched_min_granularity_ns']
-        
+
         # Mock scoring function with multiple peaks to test global search
         score1 = -0.01 * (swappiness - 30)**2 + 50
         score2 = -0.001 * (dirty_ratio - 20)**2 + 30
         score3 = 0.00001 * rmem_max
         score4 = -0.000000001 * (sched_gran - 10000000)**2 + 20
-        
+
         # Add interaction terms
         interaction = 0.001 * (swappiness * dirty_ratio / 1000)
-        
+
         total_score = score1 + score2 + score3 + score4 + interaction
-        
+
         # Add some noise
         total_score += np.random.normal(0, 0.5)
-        
+
         return total_score
-    
-    print("Testing Standard Genetic Algorithm:")
-    print("=" * 50)
-    
+
+    print("=" * 80)
+    print("Testing Genetic Algorithm with PyGAD")
+    print("=" * 80)
+
     # Initialize and run standard GA
     ga = GeneticAlgorithm(
         parameter_bounds=parameter_bounds,
@@ -543,26 +486,35 @@ if __name__ == "__main__":
         max_generations=50,
         mutation_rate=0.1,
         crossover_rate=0.8,
-        elitism_ratio=0.2
+        elitism_ratio=0.2,
+        random_seed=42
     )
-    
+
     # Run optimization
     result = ga.optimize(mock_objective_function)
-    
-    print(f"\nStandard GA Results:")
+
+    print(f"\n{'='*80}")
+    print("Standard GA Results:")
+    print(f"{'='*80}")
     print(f"Best Fitness: {result.best_fitness:.6f}")
-    print(f"Best Parameters: {result.best_individual.parameters}")
+    print("Best Parameters:")
+    for param, value in result.best_individual.parameters.items():
+        print(f"  {param}: {value:.2f}")
     print(f"Generations: {result.generation_count}")
     print(f"Converged: {result.convergence_reached}")
     print(f"Time: {result.optimization_time:.2f} seconds")
-    
+
     # Export results
     ga.export_results("genetic_algorithm_results.json")
-    
-    print("\n" + "="*50)
-    print("Testing Advanced Genetic Algorithm:")
-    print("=" * 50)
-    
+    print("\nResults exported to genetic_algorithm_results.json")
+
+    # Save model
+    ga.save_model("ga_model.pkl")
+
+    print(f"\n{'='*80}")
+    print("Testing Advanced Genetic Algorithm")
+    print(f"{'='*80}")
+
     # Initialize and run advanced GA
     advanced_ga = AdvancedGeneticAlgorithm(
         parameter_bounds=parameter_bounds,
@@ -570,36 +522,40 @@ if __name__ == "__main__":
         max_generations=50,
         mutation_rate=0.15,  # Start higher for adaptive mutation
         crossover_rate=0.8,
-        elitism_ratio=0.2
+        elitism_ratio=0.2,
+        random_seed=42
     )
-    
-    # Enable advanced features
-    advanced_ga.adaptive_parameters = True
-    advanced_ga.diversity_injection = True
-    advanced_ga.local_search = False  # Disabled for speed
-    
+
     # Run optimization
     advanced_result = advanced_ga.optimize(mock_objective_function)
-    
-    print(f"\nAdvanced GA Results:")
+
+    print(f"\n{'='*80}")
+    print(f"Advanced GA Results:")
+    print(f"{'='*80}")
     print(f"Best Fitness: {advanced_result.best_fitness:.6f}")
-    print(f"Best Parameters: {advanced_result.best_individual.parameters}")
+    print(f"Best Parameters:")
+    for param, value in advanced_result.best_individual.parameters.items():
+        print(f"  {param}: {value:.2f}")
     print(f"Generations: {advanced_result.generation_count}")
     print(f"Converged: {advanced_result.convergence_reached}")
     print(f"Time: {advanced_result.optimization_time:.2f} seconds")
-    
+
     # Export results
     advanced_ga.export_results("advanced_genetic_algorithm_results.json")
-    
+
     # Compare results
-    print(f"\nComparison:")
+    print(f"\n{'='*80}")
+    print(f"Comparison:")
+    print(f"{'='*80}")
     print(f"Standard GA Best: {result.best_fitness:.6f}")
     print(f"Advanced GA Best: {advanced_result.best_fitness:.6f}")
-    print(f"Improvement: {((advanced_result.best_fitness - result.best_fitness) / abs(result.best_fitness) * 100):.2f}%")
-    
+    improvement = ((advanced_result.best_fitness - result.best_fitness) /
+                   abs(result.best_fitness) * 100) if result.best_fitness != 0 else 0
+    print(f"Improvement: {improvement:.2f}%")
+
     # Get final diversity metrics
     diversity = advanced_ga.get_diversity_metrics()
     print(f"\nFinal Population Diversity:")
     print(f"Overall: {diversity['overall_diversity']:.4f}")
     for param, div in diversity['parameter_diversities'].items():
-        print(f"{param}: {div:.4f}")
+        print(f"  {param}: {div:.4f}")

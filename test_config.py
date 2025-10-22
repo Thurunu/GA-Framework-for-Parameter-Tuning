@@ -52,7 +52,7 @@ except Exception as e:
 print("📋 TEST 2: Workload Patterns (workload_patterns.yml)")
 print("-"*70)
 try:
-    from ProcessWorkloadDetector import WorkloadClassifier
+    from WorkloadClassifier import WorkloadClassifier
     
     classifier = WorkloadClassifier()
     

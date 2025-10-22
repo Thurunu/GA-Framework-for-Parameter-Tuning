@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
 Linux Kernel Optimization Framework - Bayesian Optimization
-This module implements Bayesian Optimization for kernel parameter tuning
+This module implements Bayesian Optimization for kernel parameter tuning using scikit-optimize (skopt)
 """
 
-from scipy.optimize import minimize
-from scipy.stats import norm
-import math
 import numpy as np
 import json
 import time
-# For type hints to improve code clarity and safety
 from typing import Dict, List, Tuple, Optional, Callable, Any
-# For defining simple classes to store structured results (OptimizationResult)
 from dataclasses import dataclass
 import warnings
-warnings.filterwarnings('ignore')
 
-# For Gaussian Process - using simplified implementation
+# Scikit-optimize for Bayesian Optimization
+from skopt import gp_minimize
+from skopt.space import Real, Integer
+from skopt.utils import use_named_args
+from skopt import dump, load
+
+warnings.filterwarnings('ignore')
 
 
 @dataclass
@@ -26,146 +26,17 @@ class OptimizationResult:
     Purpose: Stores and organizes the results of a Bayesian Optimization run.
     Use case: Returned after optimization to summarize best parameters, score, history, and convergence info.
     """
-    best_parameters: Dict[str,
-                          Any]  # the parameter values which acheived the highest score
-    best_score: float  # highest score find during optimization
-    iteration_count: int  # total number of optimization iterations performed
-    # a list of parameter sets evaluated with their corresponding scores
-    evaluation_history: List[Tuple[Dict[str, Any], float]]
-    convergence_reached: bool  # checked the optimization met the convergence criteria
-    optimization_time: float  # total time taken to optimization process
-
-
-class GaussianProcess:
-    """
-    Purpose: Models the relationship between parameters and performance scores using Gaussian Process regression.
-    Use case: Acts as a surrogate model in Bayesian Optimization, predicting expected score and uncertainty for new parameter sets.
-    """
-
-    def __init__(self, kernel_variance=1.0, kernel_lengthscale=1.0, noise_variance=1e-6):
-        """
-        Purpose: Initialize GP hyperparameters and storage for training data.
-        Use case: Called when creating a new GaussianProcess instance.
-        """
-        self.kernel_variance = kernel_variance
-        self.kernel_lengthscale = kernel_lengthscale
-        self.noise_variance = noise_variance
-        self.X_train = None
-        self.y_train = None
-        self.K_inv = None
-
-    def _rbf_kernel(self, X1, X2):
-        """
-        Purpose: Compute the RBF (squared exponential) kernel for covariance calculations.
-        Use case: Used internally for measuring similarity between parameter sets.
-        """
-        """(Radial Basis Function) RBF (Squared Exponential) kernel, this measures similarity between parameter sets. 
-        this is for GP convariance calculations"""
-        X1 = np.atleast_2d(X1)
-        X2 = np.atleast_2d(X2)
-
-        sqdist = np.sum(X1**2, axis=1).reshape(-1, 1) + \
-            np.sum(X2**2, axis=1) - 2 * np.dot(X1, X2.T)
-
-        return self.kernel_variance * np.exp(-0.5 / self.kernel_lengthscale**2 * sqdist)
-
-    def fit(self, X, y):
-        """
-        Purpose: Fit the GP to training data (parameters and scores).
-        Use case: Called to train the model before making predictions.
-        """
-        """Fit the Gaussian Process to training data"""
-        """Fits the GP to training data (parameter sets and their scores). 
-        It computes the kernel matrix and its inverse, which are used for making predictions."""
-        self.X_train = np.atleast_2d(X)
-        self.y_train = np.array(y).flatten()
-
-        # Compute kernel matrix
-        K = self._rbf_kernel(self.X_train, self.X_train)
-        K += self.noise_variance * np.eye(len(self.X_train))
-
-        # Compute inverse (with regularization for numerical stability)
-        try:
-            self.K_inv = np.linalg.inv(K)
-        except np.linalg.LinAlgError:
-            # Add regularization if matrix is singular
-            K += 1e-6 * np.eye(len(self.X_train))
-            self.K_inv = np.linalg.inv(K)
-
-    def predict(self, X_test, return_std=True):
-        """
-        Purpose: Predict mean and uncertainty for new parameter sets using the trained GP.
-        Use case: Used by the optimizer to evaluate candidate parameters.
-        """
-        """Make predictions with uncertainty estimates"""
-        """Given new parameter sets, predicts the mean (expected score) and standard deviation (uncertainty)
-        using the trained GP. This is essential for acquisition functions to balance exploration and exploitation."""
-        X_test = np.atleast_2d(X_test)
-
-        if self.X_train is None:
-            # No training data yet
-            mean = np.zeros(len(X_test))
-            if return_std:
-                std = np.sqrt(self.kernel_variance) * np.ones(len(X_test))
-                return mean, std
-            return mean
-
-        # Compute mean prediction
-        K_s = self._rbf_kernel(self.X_train, X_test)
-        mean = np.dot(K_s.T, np.dot(self.K_inv, self.y_train))
-
-        if not return_std:
-            return mean
-
-        # Compute variance prediction
-        K_ss = self._rbf_kernel(X_test, X_test)
-        variance = np.diag(K_ss) - np.sum(K_s * np.dot(self.K_inv, K_s), axis=0)
-        variance = np.maximum(variance, 1e-10)  # Ensure positive variance
-        std = np.sqrt(variance)
-
-        return mean, std
-
-
-class AcquisitionFunction:
-    """
-    Purpose: Provides acquisition functions for Bayesian Optimization. used to decide which candidate parameters should be evaluated next. 
-    Use case: Used to select the next candidate parameters to evaluate based on GP predictions.
-    """
-
-    @staticmethod
-    def expected_improvement(mean, std, f_best, xi=0.01):
-        """
-        Purpose: Calculate Expected Improvement for candidate parameters. 
-        Use case: Guides optimizer to balance exploration and exploitation.
-        """
-        improvement = mean - f_best - xi
-        Z = improvement / std
-        ei = improvement * norm.cdf(Z) + std * norm.pdf(Z)
-        ei[std == 0.0] = 0.0
-        return ei
-
-    @staticmethod
-    def upper_confidence_bound(mean, std, kappa=2.576):
-        """
-        Purpose: Calculate Upper Confidence Bound for candidate parameters.
-        Use case: Encourages exploration of uncertain regions.
-        """
-        return mean + kappa * std
-
-    @staticmethod
-    def probability_of_improvement(mean, std, f_best, xi=0.01):
-        """
-        Purpose: Calculate Probability of Improvement for candidate parameters.
-        Use case: Selects parameters likely to improve over current best.
-        """
-        improvement = mean - f_best - xi
-        Z = improvement / std
-        return norm.cdf(Z)
+    best_parameters: Dict[str, Any]  # The parameter values which achieved the highest score
+    best_score: float  # Highest score found during optimization
+    iteration_count: int  # Total number of optimization iterations performed
+    evaluation_history: List[Tuple[Dict[str, Any], float]]  # List of (parameters, score) tuples
+    convergence_reached: bool  # Whether optimization met convergence criteria
+    optimization_time: float  # Total time taken for optimization process
 
 
 class BayesianOptimizer:
     """
-    Purpose: Implements Bayesian Optimization for kernel parameter tuning.
+    Purpose: Implements Bayesian Optimization for kernel parameter tuning using scikit-optimize.
     Use case: Manages the optimization loop, parameter suggestions, and result collection.
     """
 
@@ -178,13 +49,10 @@ class BayesianOptimizer:
         """
         Purpose: Initialize optimizer settings and parameter bounds.
         Use case: Called when creating a new BayesianOptimizer instance.
-        """
-        """
-        Initialize Bayesian Optimizer
-
+        
         Args:
             parameter_bounds: Dict of parameter names to (min, max) bounds
-            acquisition_function: 'ei', 'ucb', or 'pi'
+            acquisition_function: 'ei' (Expected Improvement), 'gp_hedge', or 'EI'
             initial_samples: Number of random initial samples
             max_iterations: Maximum optimization iterations
             convergence_threshold: Convergence threshold for optimization
@@ -192,294 +60,171 @@ class BayesianOptimizer:
         """
         self.parameter_bounds = parameter_bounds
         self.parameter_names = list(parameter_bounds.keys())
-        self.bounds_array = np.array(
-            [parameter_bounds[name] for name in self.parameter_names])
-
-        self.acquisition_function = acquisition_function
+        
+        # Convert bounds to skopt space
+        self.space = [
+            Real(low=bounds[0], high=bounds[1], name=name) 
+            for name, bounds in parameter_bounds.items()
+        ]
+        
+        # Map acquisition function names
+        acq_map = {
+            'ei': 'EI',
+            'ucb': 'LCB',  # skopt uses LCB (Lower Confidence Bound) for minimization
+            'pi': 'PI',
+            'gp_hedge': 'gp_hedge'
+        }
+        self.acquisition_function = acq_map.get(acquisition_function.lower(), 'EI')
+        
         self.initial_samples = initial_samples
         self.max_iterations = max_iterations
         self.convergence_threshold = convergence_threshold
-
-        # Initialize random number generator
-        np.random.seed(random_seed)
-
-        # Initialize Gaussian Process
-        self.gp = GaussianProcess()
-
+        self.random_seed = random_seed
+        
         # Storage for optimization history
-        self.X_history = []
-        self.y_history = []
         self.best_score = -np.inf
         self.best_parameters = None
+        self.optimization_result = None
 
-        # Acquisition function mapping
-        self.acq_functions = {
-            'ei': AcquisitionFunction.expected_improvement,
-            'ucb': AcquisitionFunction.upper_confidence_bound,
-            'pi': AcquisitionFunction.probability_of_improvement
-        }
-
-    def _normalize_parameters(self, parameters: np.ndarray) -> np.ndarray:
+    def _parameters_to_dict(self, param_list: List[float]) -> Dict[str, float]:
         """
-        Purpose: Normalize parameters to [0, 1] range for optimization.
-        Use case: Used internally before optimization steps.
+        Purpose: Convert parameter list to dictionary format.
+        Use case: Used for compatibility with objective functions.
         """
-        """Normalize parameters to [0, 1] range"""
-        return (parameters - self.bounds_array[:, 0]) / (self.bounds_array[:, 1] - self.bounds_array[:, 0])
-
-    def _denormalize_parameters(self, normalized_params: np.ndarray) -> np.ndarray:
-        """
-        Purpose: Convert normalized parameters back to their original scale.
-        Use case: Used internally to interpret results in real parameter space.
-        """
-        """Denormalize parameters from [0, 1] to original range"""
-        return normalized_params * (self.bounds_array[:, 1] - self.bounds_array[:, 0]) + self.bounds_array[:, 0]
-
-    def _parameters_to_dict(self, param_array: np.ndarray) -> Dict[str, float]:
-        """
-        Purpose: Convert parameter array to dictionary format.
-        Use case: Used for compatibility with objective functions and result storage.
-        """
-        """Convert parameter array to dictionary"""
-        return {name: float(param_array[i]) for i, name in enumerate(self.parameter_names)}
-
-    def _dict_to_parameters(self, param_dict: Dict[str, float]) -> np.ndarray:
-        """
-        Purpose: Convert parameter dictionary to array format.
-        Use case: Used internally for optimization calculations.
-        """
-        """Convert parameter dictionary to array"""
-        return np.array([param_dict[name] for name in self.parameter_names])
-
-    def _generate_initial_samples(self) -> List[np.ndarray]:
-        """
-        Purpose: Generate initial random samples for optimization.
-        Use case: Used to start the optimization process with diverse parameter sets.
-        """
-        """Generate initial random samples"""
-        samples = []
-        for _ in range(self.initial_samples):
-            # Generate random samples within bounds
-            sample = np.random.uniform(
-                self.bounds_array[:, 0],
-                self.bounds_array[:, 1]
-            )
-            samples.append(sample)
-        return samples
-
-    def _optimize_acquisition(self, acquisition_func: Callable) -> np.ndarray:
-        """
-        Purpose: Find parameters that maximize the acquisition function.
-        Use case: Used to suggest the next candidate parameters to evaluate.
-        """
-        """Optimize acquisition function to find next evaluation point"""
-
-        def objective(x_norm):
-            """Objective function to minimize (negative acquisition)"""
-            x = self._denormalize_parameters(x_norm)
-            mean, std = self.gp.predict([self._normalize_parameters(x)])
-
-            if self.acquisition_function == 'ei':
-                acq_val = acquisition_func(mean[0], std[0], self.best_score)
-            elif self.acquisition_function == 'ucb':
-                acq_val = acquisition_func(mean[0], std[0])
-            else:  # pi
-                acq_val = acquisition_func(mean[0], std[0], self.best_score)
-
-            return -acq_val  # Minimize negative acquisition
-
-        # Multiple random starts for global optimization
-        best_x = None
-        best_val = np.inf
-
-        for _ in range(10):  # 10 random starts
-            x0 = np.random.uniform(0, 1, len(self.parameter_names))
-
-            try:
-                result = minimize(
-                    objective, x0,
-                    bounds=[(0, 1)] * len(self.parameter_names),
-                    method='L-BFGS-B'
-                )
-
-                if result.fun < best_val:
-                    best_val = result.fun
-                    best_x = result.x
-            except:
-                continue
-
-        if best_x is None:
-            # Fallback to random sampling
-            best_x = np.random.uniform(0, 1, len(self.parameter_names))
-
-        return self._denormalize_parameters(best_x)
-
-    def suggest_next_parameters(self) -> Dict[str, float]:
-        """
-        Purpose: Suggest the next parameters to evaluate based on acquisition function.
-        Use case: Called during each optimization iteration.
-        """
-        """Suggest next parameters to evaluate"""
-
-        if len(self.X_history) < self.initial_samples:
-            # Generate initial random samples
-            remaining_samples = self.initial_samples - len(self.X_history)
-            initial_samples = self._generate_initial_samples()
-            next_params = initial_samples[len(self.X_history)]
-        else:
-            # Use acquisition function to suggest next point
-            acquisition_func = self.acq_functions[self.acquisition_function]
-            next_params = self._optimize_acquisition(acquisition_func)
-
-        return self._parameters_to_dict(next_params)
-
-    def update_with_result(self, parameters: Dict[str, float], score: float):
-        """
-        Purpose: Update the optimizer with the result of an evaluated parameter set.
-        Use case: Called after each objective function evaluation.
-        """
-        """Update optimizer with evaluation result"""
-        param_array = self._dict_to_parameters(parameters)
-
-        # Store in history
-        self.X_history.append(param_array)
-        self.y_history.append(score)
-
-        # Update best result
-        if score > self.best_score:
-            self.best_score = score
-            self.best_parameters = parameters.copy()
-
-        # Update Gaussian Process
-        if len(self.X_history) >= 2:
-            X_normalized = np.array(
-                [self._normalize_parameters(x) for x in self.X_history])
-            self.gp.fit(X_normalized, self.y_history)
+        return {name: float(value) for name, value in zip(self.parameter_names, param_list)}
 
     def optimize(self, objective_function: Callable[[Dict[str, float]], float]) -> OptimizationResult:
         """
-        Purpose: Run the full Bayesian Optimization loop.
+        Purpose: Run the full Bayesian Optimization loop using scikit-optimize.
         Use case: Main method to perform optimization and return results.
         """
-        """Run complete Bayesian Optimization"""
-
         start_time = time.time()
-        iteration_count = 0
-        convergence_reached = False
         evaluation_history = []
-
-        print(
-            f"Starting Bayesian Optimization with {self.max_iterations} iterations...")
-
-        for iteration in range(self.max_iterations):
-            iteration_count += 1
-
-            # Get next parameters to evaluate
-            next_params = self.suggest_next_parameters()
-
-            # Evaluate objective function
+        
+        print(f"Starting Bayesian Optimization with {self.max_iterations} iterations...")
+        print(f"Using acquisition function: {self.acquisition_function}")
+        
+        # Wrapper for objective function (skopt minimizes, so we negate the score)
+        @use_named_args(self.space)
+        def objective_wrapper(**params):
             try:
-                score = objective_function(next_params)
-                print(
-                    f"Iteration {iteration + 1}: Score = {score:.6f}, Params = {next_params}")
-
-                # Update optimizer
-                self.update_with_result(next_params, score)
-                evaluation_history.append((next_params.copy(), score))
-
-                # Check for convergence
-                if len(self.y_history) >= 3:
-                    recent_improvement = max(self.y_history[-3:]) - max(
-                        self.y_history[-6:-3]) if len(self.y_history) >= 6 else float('inf')
-                    if abs(recent_improvement) < self.convergence_threshold:
-                        convergence_reached = True
-                        print(
-                            f"Convergence reached at iteration {iteration + 1}")
-                        break
-
+                # Evaluate objective function (higher is better)
+                score = objective_function(params)
+                
+                # Store in history
+                evaluation_history.append((params.copy(), score))
+                
+                # Update best result
+                if score > self.best_score:
+                    self.best_score = score
+                    self.best_parameters = params.copy()
+                
+                print(f"Iteration {len(evaluation_history)}: Score = {score:.6f}")
+                
+                # Return negative score (skopt minimizes)
+                return -score
+                
             except Exception as e:
-                print(
-                    f"Error evaluating parameters at iteration {iteration + 1}: {e}")
-                continue
-
+                print(f"Error evaluating parameters: {e}")
+                return 0.0  # Return neutral score on error
+        
+        # Run Bayesian Optimization
+        self.optimization_result = gp_minimize(
+            func=objective_wrapper,
+            dimensions=self.space,
+            acq_func=self.acquisition_function,
+            n_calls=self.max_iterations,
+            n_initial_points=self.initial_samples,
+            random_state=self.random_seed,
+            verbose=False
+        )
+        
         optimization_time = time.time() - start_time
-
-        print(f"Optimization completed in {optimization_time:.2f} seconds")
+        
+        # Check for convergence (simple heuristic: improvement in last few iterations)
+        convergence_reached = False
+        if len(evaluation_history) >= 6:
+            recent_scores = [score for _, score in evaluation_history[-6:]]
+            improvement = max(recent_scores[-3:]) - max(recent_scores[:3])
+            convergence_reached = abs(improvement) < self.convergence_threshold
+        
+        print(f"\nOptimization completed in {optimization_time:.2f} seconds")
         print(f"Best score: {self.best_score:.6f}")
         print(f"Best parameters: {self.best_parameters}")
-
+        
         return OptimizationResult(
             best_parameters=self.best_parameters or {},
             best_score=self.best_score,
-            iteration_count=iteration_count,
+            iteration_count=len(evaluation_history),
             evaluation_history=evaluation_history,
             convergence_reached=convergence_reached,
             optimization_time=optimization_time
         )
     
-    def adaptive_optimize(self, objective_function, max_iterations=50, max_restarts=10, required_stable_runs=3, tolerance=1e-4):
+    def adaptive_optimize(self, objective_function: Callable[[Dict[str, float]], float], 
+                         max_iterations: int = 50, 
+                         max_restarts: int = 10, 
+                         required_stable_runs: int = 3, 
+                         tolerance: float = 1e-4) -> OptimizationResult:
+        """
+        Purpose: Run adaptive optimization with multiple restarts for stability.
+        Use case: Used when robustness is more important than speed.
+        """
         stable_count = 0
         previous_best = None
         all_results = []
         self.max_iterations = max_iterations
-        for _ in range(max_restarts):
+        
+        for restart in range(max_restarts):
+            print(f"\n--- Adaptive Restart {restart + 1}/{max_restarts} ---")
             result = self.optimize(objective_function)
             all_results.append(result)
-            if previous_best and self.is_similar(result.best_parameters, previous_best, tolerance):
+            
+            if previous_best and self._is_similar(result.best_parameters, previous_best, tolerance):
                 stable_count += 1
+                print(f"Stable count: {stable_count}/{required_stable_runs}")
             else:
                 stable_count = 1
                 previous_best = result.best_parameters
+            
             if stable_count >= required_stable_runs:
+                print(f"Convergence achieved after {restart + 1} restarts")
                 break
+        
         return result
 
-    def is_similar(self, params1, params2, tolerance):
-        return all(abs(params1[k] - params2[k]) < tolerance for k in params1)
-
-    def get_posterior_statistics(self, test_points: Optional[List[Dict[str, float]]] = None) -> Dict:
+    def _is_similar(self, params1: Dict[str, float], params2: Dict[str, float], tolerance: float) -> bool:
         """
-        Purpose: Get statistics (mean, std) from the GP for given test points.
+        Purpose: Check if two parameter sets are similar within tolerance.
+        Use case: Used in adaptive optimization to detect convergence.
+        """
+        return all(abs(params1.get(k, 0) - params2.get(k, 0)) < tolerance for k in params1)
+
+    def get_posterior_statistics(self) -> Dict:
+        """
+        Purpose: Get statistics from the Gaussian Process model.
         Use case: Used for analysis and visualization of the model's predictions.
         """
-        """Get posterior statistics from Gaussian Process"""
-        if not self.X_history:
-            return {"error": "No training data available"}
-
-        if test_points is None:
-            # Generate test points
-            n_test = 100
-            test_points_array = []
-            for _ in range(n_test):
-                test_point = np.random.uniform(
-                    self.bounds_array[:, 0],
-                    self.bounds_array[:, 1]
-                )
-                test_points_array.append(test_point)
-        else:
-            test_points_array = [
-                self._dict_to_parameters(tp) for tp in test_points]
-
-        # Get predictions
-        X_test_norm = np.array([self._normalize_parameters(x)
-                               for x in test_points_array])
-        means, stds = self.gp.predict(X_test_norm)
-
+        if self.optimization_result is None:
+            return {"error": "No optimization results available"}
+        
+        # Extract information from skopt result
         return {
-            "mean_prediction": np.mean(means),
-            "std_prediction": np.mean(stds),
-            "max_uncertainty": np.max(stds),
-            "min_uncertainty": np.min(stds),
-            "predicted_best": np.max(means),
-            "predicted_best_params": self._parameters_to_dict(test_points_array[np.argmax(means)])
+            "n_evaluations": len(self.optimization_result.x_iters),
+            "best_score": -self.optimization_result.fun,  # Negate back to original score
+            "best_params": self._parameters_to_dict(self.optimization_result.x),
+            "model_type": str(type(self.optimization_result.models[-1]).__name__) if self.optimization_result.models else "Unknown"
         }
 
     def export_results(self, filename: str):
         """
-        Purpose: Export optimization results to a file.
+        Purpose: Export optimization results to a JSON file.
         Use case: Used to save results for later analysis or reporting.
         """
-        """Export optimization results to JSON file"""
+        if self.optimization_result is None:
+            print("No optimization results to export")
+            return
+        
         results_data = {
             "optimization_settings": {
                 "parameter_bounds": self.parameter_bounds,
@@ -492,11 +237,15 @@ class BayesianOptimizer:
                 "score": self.best_score
             },
             "evaluation_history": [
-                {"parameters": params, "score": score}
-                for params, score in zip(
-                    [self._parameters_to_dict(x) for x in self.X_history],
-                    self.y_history
-                )
+                {
+                    "iteration": i + 1,
+                    "parameters": self._parameters_to_dict(x),
+                    "score": -f  # Negate back to original score
+                }
+                for i, (x, f) in enumerate(zip(
+                    self.optimization_result.x_iters,
+                    self.optimization_result.func_vals
+                ))
             ],
             "posterior_statistics": self.get_posterior_statistics()
         }
@@ -505,6 +254,35 @@ class BayesianOptimizer:
             json.dump(results_data, f, indent=2)
 
         print(f"Results exported to {filename}")
+    
+    def save_model(self, filename: str):
+        """
+        Purpose: Save the trained model to a file for later use.
+        Use case: Allows resuming optimization or using the model for predictions.
+        """
+        if self.optimization_result is None:
+            print("No optimization results to save")
+            return
+        
+        dump(self.optimization_result, filename)
+        print(f"Model saved to {filename}")
+    
+    def suggest_next_parameters(self) -> Dict[str, float]:
+        """
+        Purpose: Suggest next parameters based on current model (for manual iteration).
+        Use case: Allows manual control over the optimization loop.
+        """
+        if self.optimization_result is None:
+            # Generate random initial sample
+            return {
+                name: np.random.uniform(bounds[0], bounds[1])
+                for name, bounds in self.parameter_bounds.items()
+            }
+        
+        # Use the model to suggest next point
+        # Note: This is a simplified approach; full implementation would use ask/tell interface
+        print("Warning: suggest_next_parameters is simplified. Use optimize() for full functionality.")
+        return self.best_parameters
 
 
 # Example usage and testing
@@ -519,10 +297,10 @@ if __name__ == "__main__":
 
     # Create mock objective function (in real implementation, this would evaluate system performance)
     def mock_objective_function(params: Dict[str, float]) -> float:
-        """Mock objective function for testing"""
-        # Simulate performance score based on parameters
-        # In reality, this would run benchmarks and return performance metrics
-
+        """
+        Mock objective function for testing.
+        In reality, this would run benchmarks and return performance metrics.
+        """
         swappiness = params['vm.swappiness']
         dirty_ratio = params['vm.dirty_ratio']
         rmem_max = params['net.core.rmem_max']
@@ -539,31 +317,50 @@ if __name__ == "__main__":
         return score
 
     # Initialize and run Bayesian Optimizer
+    print("=" * 80)
+    print("Bayesian Optimization with scikit-optimize (skopt)")
+    print("=" * 80)
+    
     optimizer = BayesianOptimizer(
         parameter_bounds=parameter_bounds,
         acquisition_function='ei',
         initial_samples=5,
-        max_iterations=20
+        max_iterations=20,
+        random_seed=42
     )
 
     # Run optimization
     result = optimizer.optimize(mock_objective_function)
 
-    print("\nOptimization Results:")
+    print("\n" + "=" * 80)
+    print("Optimization Results:")
+    print("=" * 80)
     print(f"Best Score: {result.best_score:.6f}")
-    print(f"Best Parameters: {result.best_parameters}")
+    print(f"Best Parameters:")
+    for param, value in result.best_parameters.items():
+        print(f"  {param}: {value:.2f}")
     print(f"Iterations: {result.iteration_count}")
     print(f"Converged: {result.convergence_reached}")
     print(f"Time: {result.optimization_time:.2f} seconds")
 
     # Export results
     optimizer.export_results("bayesian_optimization_results.json")
+    print("\nResults exported to bayesian_optimization_results.json")
 
     # Get posterior statistics
     stats = optimizer.get_posterior_statistics()
-    print(f"\nPosterior Statistics:")
+    print("\n" + "=" * 80)
+    print("Model Statistics:")
+    print("=" * 80)
     for key, value in stats.items():
-        if isinstance(value, (int, float)):
-            print(f"{key}: {value:.6f}")
+        if isinstance(value, dict):
+            print(f"{key}:")
+            for k, v in value.items():
+                print(f"  {k}: {v:.2f}" if isinstance(v, (int, float)) else f"  {k}: {v}")
         else:
-            print(f"{key}: {value}")
+            print(f"{key}: {value:.6f}" if isinstance(value, (int, float)) else f"{key}: {value}")
+    
+    # Save the model for future use
+    optimizer.save_model("bayesian_model.pkl")
+    print("\nModel saved to bayesian_model.pkl")
+
