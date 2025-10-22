@@ -7,14 +7,23 @@ Handles process nice values and priority adjustments for kernel 6.6+ systems
 import subprocess
 import logging
 import os
-import yaml
-import psutil
 import time
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from collections import defaultdict
+
+try:
+    import yaml
+except ImportError:
+    print("Warning: PyYAML not installed. Install with: pip install pyyaml")
+    yaml = None
+
+try:
+    import psutil
+except ImportError:
+    print("Warning: psutil not installed. Install with: pip install psutil")
+    psutil = None
 
 class PriorityClass(Enum):
     """Process priority classes for different workload types"""
@@ -40,6 +49,12 @@ class ProcessPriorityManager:
     """
     
     def __init__(self, log_level=logging.INFO, config_file: str = None):
+        # Check for required dependencies
+        if psutil is None:
+            raise ImportError("psutil is required. Install with: pip install psutil")
+        if yaml is None:
+            raise ImportError("PyYAML is required. Install with: pip install pyyaml")
+        
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         
@@ -90,10 +105,14 @@ class ProcessPriorityManager:
             return config
             
         except FileNotFoundError:
-            print(f"⚠️ Warning: Configuration file {config_file} not found. Using default patterns.")
+            self.logger.warning("Configuration file %s not found. Using default patterns.", config_file)
             return self._get_default_configuration()
-        except Exception as e:
-            print(f"Error loading process priority configuration: {e}")
+        except yaml.YAMLError as e:
+            self.logger.error("Error parsing YAML configuration: %s", e)
+            print("Falling back to default configuration.")
+            return self._get_default_configuration()
+        except (OSError, IOError) as e:
+            self.logger.error("Error loading process priority configuration: %s", e)
             print("Falling back to default configuration.")
             return self._get_default_configuration()
     
@@ -222,7 +241,7 @@ class ProcessPriorityManager:
         try:
             # Validate nice value range
             if not -20 <= nice_value <= 19:
-                self.logger.error(f"Invalid nice value {nice_value}. Must be between -20 and 19")
+                self.logger.error("Invalid nice value %s. Must be between -20 and 19", nice_value)
                 return False
             
             # Store original priority if not already stored
@@ -233,23 +252,23 @@ class ProcessPriorityManager:
             
             # Set new priority
             if os.name == 'nt':  # Windows simulation
-                self.logger.info(f"Simulated: renice {nice_value} {pid}")
+                self.logger.info("Simulated: renice %s %s", nice_value, pid)
                 return True
             else:
-                result = subprocess.run(
+                subprocess.run(
                     ['renice', str(nice_value), str(pid)],
                     capture_output=True,
                     text=True,
                     check=True
                 )
-                self.logger.info(f"Set process {pid} priority to {nice_value}")
+                self.logger.info("Set process %s priority to %s", pid, nice_value)
                 return True
                 
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to set priority for process {pid}: {e}")
+            self.logger.error("Failed to set priority for process %s: %s", pid, e)
             return False
-        except Exception as e:
-            self.logger.error(f"Unexpected error setting priority for {pid}: {e}")
+        except (OSError, ValueError) as e:
+            self.logger.error("Unexpected error setting priority for %s: %s", pid, e)
             return False
     
     def scan_and_classify_processes(self) -> Dict[str, List[ProcessInfo]]:
@@ -324,8 +343,8 @@ class ProcessPriorityManager:
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     continue
                     
-        except Exception as e:
-            self.logger.error(f"Error scanning processes: {e}")
+        except (psutil.Error, OSError) as e:
+            self.logger.error("Error scanning processes: %s", e)
         
         return classified_processes
     
@@ -354,8 +373,6 @@ class ProcessPriorityManager:
         boost_amount = boost_config.get('boost_amount', 5)
         max_priority = boost_config.get('max_priority', -20)
         
-        dry_run = self.config.get('safety', {}).get('dry_run', False)
-        
         classified_processes = self.scan_and_classify_processes()
         
         for workload_type, processes in classified_processes.items():
@@ -367,7 +384,10 @@ class ProcessPriorityManager:
                     # Apply workload focus boost if enabled
                     if boost_enabled and workload_focus and workload_type == workload_focus:
                         target_nice = max(target_nice - boost_amount, max_priority)  # Boost priority
-                        self.logger.info(f"Boosting {workload_type} process {proc_info.name} (PID {proc_info.pid})")
+                        self.logger.info(
+                            "Boosting %s process %s (PID %s)",
+                            workload_type, proc_info.name, proc_info.pid
+                        )
                     
                     # Only adjust if different from current
                     if proc_info.current_nice != target_nice:
@@ -383,11 +403,11 @@ class ProcessPriorityManager:
                         else:
                             stats['errors'] += 1
                             
-                except Exception as e:
-                    self.logger.error(f"Error optimizing process {proc_info.pid}: {e}")
+                except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError) as e:
+                    self.logger.error("Error optimizing process %s: %s", proc_info.pid, e)
                     stats['errors'] += 1
         
-        self.logger.info(f"Priority optimization complete: {stats}")
+        self.logger.info("Priority optimization complete: %s", stats)
         return stats
     
     def restore_original_priorities(self) -> int:
@@ -403,9 +423,12 @@ class ProcessPriorityManager:
             try:
                 if self.set_process_priority(pid, original_nice):
                     restored_count += 1
-                    self.logger.info(f"Restored process {pid} to original priority {original_nice}")
-            except Exception as e:
-                self.logger.error(f"Failed to restore priority for process {pid}: {e}")
+                    self.logger.info(
+                        "Restored process %s to original priority %s",
+                        pid, original_nice
+                    )
+            except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError) as e:
+                self.logger.error("Failed to restore priority for process %s: %s", pid, e)
         
         # Clear tracking
         self.managed_processes.clear()
@@ -465,7 +488,7 @@ def main():
             if len(processes) > 3:
                 print(f"  ... and {len(processes) - 3} more")
     
-    print(f"\nPriority Statistics:")
+    print("\nPriority Statistics:")
     stats = manager.get_priority_statistics()
     for key, value in stats.items():
         print(f"  {key}: {value}")
