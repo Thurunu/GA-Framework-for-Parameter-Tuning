@@ -11,8 +11,8 @@
 
 priority_mappings:
   database:
-    description: "Database servers and data stores"
-    priority_class: HIGH  # -10
+    description: "Database servers and data stores (HIGHEST PRIORITY)"
+    priority_class: CRITICAL  # -20 (Highest - this is your main workload!)
     patterns:
       - "mysqld"
       # - "postgres"
@@ -64,6 +64,21 @@ priority_mappings:
   #     - "tar"
   #     - "gzip"
 
+  background_tasks:
+    description: "Background maintenance and batch tasks (lowest priority)"
+    priority_class: BACKGROUND  # 19
+    patterns:
+      - "cron"
+      - "rsync"
+      - "backup"
+      - "updatedb"
+      - "logrotate"
+      - "anacron"
+      - "tar"
+      - "gzip"
+      - "bzip2"
+      - "xz"
+
   # interactive:
   #   description: "Interactive user applications"
   #   priority_class: HIGH  # -10
@@ -79,8 +94,8 @@ priority_mappings:
   #     - "vscode"
 
   system_critical:
-    description: "Critical system processes (handle with care!)"
-    priority_class: CRITICAL  # -20
+    description: "Critical system processes (supporting services)"
+    priority_class: HIGH  # -10 (High, but lower than database workload)
     patterns:
       - "systemd"
       - "kernel"
@@ -148,7 +163,7 @@ filter_rules:
   # Process stability tracking
   # Only adjust processes that appear consistently across multiple scans
   stability_tracking:
-    enabled: true
+    enabled: false
     required_observations: 2  # Number of scans a process must appear in before adjustment
     observation_window: 30  # Time window in seconds to track process stability
 
