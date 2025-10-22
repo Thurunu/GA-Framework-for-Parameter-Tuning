@@ -4,7 +4,7 @@
 profiles:
   database:
     workload_type: database
-    strategy: ADAPTIVE
+    strategy: HYBRID_SEQUENTIAL
     evaluation_budget: 15
     time_budget: 180.0  # 3 minutes
     

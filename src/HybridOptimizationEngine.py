@@ -74,12 +74,20 @@ class HybridOptimizationEngine:
             'crossover_rate': 0.8
         }
 
-        # Auto-suggest strategy if adaptive
+        # Store original strategy choice
+        self.original_strategy = strategy
+        
+        # Auto-suggest strategy ONLY if user explicitly chose ADAPTIVE
+        # Otherwise, respect the user's explicit choice (HYBRID_SEQUENTIAL, etc.)
         if self.strategy == OptimizationStrategy.ADAPTIVE:
-            self.strategy = WorkloadCharacterizer.suggest_strategy(
+            suggested_strategy = WorkloadCharacterizer.suggest_strategy(
                 parameter_bounds, evaluation_budget, time_budget
             )
+            self.strategy = suggested_strategy
             print(f"Auto-selected strategy: {self.strategy.value}")
+        else:
+            # User explicitly chose a strategy, respect it
+            print(f"Using configured strategy: {self.strategy.value}")
 
         # Initialize optimizers
         self.bayesian_optimizer = None
