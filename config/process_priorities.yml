@@ -143,7 +143,7 @@ filter_rules:
   
   # Short-lived process filtering
   # Prevents wasting resources on processes that start and stop quickly
-  min_process_age: 5.0  # Minimum process uptime in seconds before considering for adjustment
+  min_process_age: 2.0  # Minimum process uptime in seconds before considering for adjustment
   
   # Process stability tracking
   # Only adjust processes that appear consistently across multiple scans

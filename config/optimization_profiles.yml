@@ -4,7 +4,7 @@
 profiles:
   database:
     workload_type: database
-    strategy: BAYESIAN_ONLY
+    strategy: ADAPTIVE
     evaluation_budget: 15
     time_budget: 180.0  # 3 minutes
     
@@ -18,9 +18,9 @@ profiles:
       net.core.wmem_max: [65536, 16777216]
     
     performance_weights:
-      cpu_efficiency: 0.2
-      memory_efficiency: 0.3
-      io_throughput: 0.4
+      cpu_efficiency: 0.4
+      memory_efficiency: 0.4
+      io_throughput: 0.1
       network_throughput: 0.1
 
   web_server:
