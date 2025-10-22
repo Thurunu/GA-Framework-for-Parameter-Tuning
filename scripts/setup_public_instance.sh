@@ -12,6 +12,7 @@ fi
 
 PRIVATE_1_IP="${1}"
 PRIVATE_2_IP="${2}"
+PRIVATE_3_IP="${3}"
 APP_DIR="${3:-/home/ubuntu/ga-framework}"
 
 echo "🚀 Setting up Public Instance with Docker and Monitoring..."
@@ -124,6 +125,12 @@ scrape_configs:
       - targets: ['${PRIVATE_2_IP}:9100']
         labels:
           instance: 'private-instance-2'
+  # Node Exporter on Private Instance 3
+  - job_name: 'node-exporter-private-3'
+    static_configs:
+      - targets: ['${PRIVATE_3_IP}:9100']
+        labels:
+          instance: 'private-instance-3'
 
   # MySQL Exporter on Private Instance 2
   - job_name: 'mysql-exporter'

@@ -38,6 +38,7 @@ jobs:
           ssh-keyscan -H ${{ secrets.PUBLIC_INSTANCE_IP }} >> ~/.ssh/known_hosts
           ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_1_IP }} >> ~/.ssh/known_hosts
           ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_2_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PRIVATE_INSTANCE_3_IP }} >> ~/.ssh/known_hosts
           echo "✅ SSH keys configured"
 
       - name: Test SSH connections
@@ -45,6 +46,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "echo '✅ Public Instance'"
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "echo '✅ Private Instance 1'"
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "echo '✅ Private Instance 2'"
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_3_IP }} "echo '✅ Private Instance 3'"
 
       - name: Copy files to Public Instance
         run: |
@@ -61,7 +63,14 @@ jobs:
       #     rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
       #       --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude '.github' \
       #       ./ ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }}:${{ env.APP_DIR }}/
-
+      
+      - name: Copy files to Private Instance 3
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_3_IP }} "mkdir -p ${{ env.APP_DIR }}"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+          --include='scripts/' --include='scripts/**' \
+          --exclude='*' \
+          ./ ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_3_IP }}:${{ env.APP_DIR }}/
       - name: Copy files to Private Instance 2
         run: |
           ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_2_IP }} "mkdir -p ${{ env.APP_DIR }}"
@@ -73,11 +82,15 @@ jobs:
         run: |
           PRIVATE_1_IP="${{ secrets.PRIVATE_INSTANCE_1_PRIVATE_IP }}"
           PRIVATE_2_IP="${{ secrets.PRIVATE_INSTANCE_2_PRIVATE_IP }}"
+          PRIVATE_3_IP="${{ secrets.PRIVATE_INSTANCE_3_PRIVATE_IP }}"
           ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PUBLIC_INSTANCE_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_public_instance.sh && ./setup_public_instance.sh $PRIVATE_1_IP $PRIVATE_2_IP ${{ env.APP_DIR }}"
 
       - name: Setup Private Instance 1 (Node Exporter)
         run: |
           ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_1_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_private_instance_1.sh && ./setup_private_instance_1.sh"
+      - name: Setup Private Instance 3 (Node Exporter)
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ env.EC2_USER }}@${{ secrets.PRIVATE_INSTANCE_3_IP }} "cd ${{ env.APP_DIR }}/scripts && chmod +x setup_private_instance_3.sh && ./setup_private_instance_3.sh"
 
       - name: Setup Private Instance 2 (MySQL + Exporters + App)
         run: |
