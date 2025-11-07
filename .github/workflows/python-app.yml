@@ -1,4 +1,4 @@
-name: Python application
+name: Python application analyzer
 
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
             --body "$(cat trivy-report.json)" \
             --label "security" 
         else
-          echo "No critical or high vulnerabilities found ✅"
+          echo "✅No critical or high vulnerabilities found"
         fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,39 +63,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Super-linter
         uses: super-linter/super-linter@v8
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # - name: Check linter logs and create issue if errors
-      #   if: failure()
-      #   run: |
-      #     echo "Linting errors detected, creating issue..."
-      #     gh issue create \
-      #       --title "Linting Errors: Bash script issues detected" \
-      #       --body "Super-Linter found errors in Bash scripts. Please fix them.\n\nLogs:\n\`\`\`\n$(cat /tmp/linting.log || echo 'Check GitHub Actions logs for details')\n\`\`\`" \
-      #       --label "linting"
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Set up Python 3.10
-      #   uses: actions/setup-python@v3
-      #   with:
-      #     python-version: "3.10"
-      # - name: Install dependencies
-      #   run: |
-      #     python -m pip install --upgrade pip
-      #     pip install flake8 pytest
-      #     if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      # - name: Lint with flake8
-      #   run: |
-      #     # stop the build if there are Python syntax errors or undefined names
-      #     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-      #     # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-      #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      # - name: Test with pytest
-      #   run: |
-      #     pytest

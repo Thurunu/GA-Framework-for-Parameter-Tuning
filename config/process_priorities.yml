@@ -12,7 +12,7 @@
 priority_mappings:
   database:
     description: "Database servers and data stores (HIGHEST PRIORITY)"
-    priority_class: CRITICAL  # -20 (Highest - this is your main workload!)
+    priority_class: CRITICAL # -20 (Highest - this is your main workload!)
     patterns:
       - "mysqld"
       # - "postgres"
@@ -24,12 +24,12 @@ priority_mappings:
       - "cassandra"
       - "memcached"
 
-  # web_server:
-  #   description: "Web servers and application servers"
-  #   priority_class: HIGH  # -10
-  #   patterns:
+  web_server:
+    description: "Web servers and application servers"
+    priority_class: HIGH  # -10
+    patterns:
+    - "apache2"
   #     - "nginx"
-  #     - "apache"
   #     - "httpd"
   #     - "gunicorn"
   #     - "uwsgi"
@@ -39,7 +39,7 @@ priority_mappings:
 
   compute_intensive:
     description: "Compute-intensive applications and scientific computing"
-    priority_class: NORMAL  # 0
+    priority_class: NORMAL # 0
     patterns:
       - "python.*numpy"
       # - "python.*scipy"
@@ -50,23 +50,10 @@ priority_mappings:
       # - "octave"
       # - "mpirun"
 
-  # background_tasks:
-  #   description: "Background maintenance and batch tasks"
-  #   priority_class: BACKGROUND  # 19
-  #   patterns:
-  #     - "cron"
-  #     - "rsync"
-  #     - "backup"
-  #     - "updatedb"
-  #     - "logrotate"
-  #     - "anacron"
-  #     - "sync"
-  #     - "tar"
-  #     - "gzip"
 
   background_tasks:
     description: "Background maintenance and batch tasks (lowest priority)"
-    priority_class: BACKGROUND  # 19
+    priority_class: BACKGROUND # 19
     patterns:
       - "cron"
       - "rsync"
@@ -95,7 +82,7 @@ priority_mappings:
 
   system_critical:
     description: "Critical system processes (supporting services)"
-    priority_class: HIGH  # -10 (High, but lower than database workload)
+    priority_class: HIGH # -10 (High, but lower than database workload)
     patterns:
       - "systemd"
       - "kernel"
@@ -116,7 +103,7 @@ priority_mappings:
 
   compilation:
     description: "Software compilation and build processes"
-    priority_class: LOW  # 10
+    priority_class: LOW # 10
     patterns:
       # - "gcc"
       # - "g++"
@@ -132,53 +119,51 @@ priority_mappings:
 # When a specific workload is detected as dominant, these boosts apply
 workload_focus_boost:
   enabled: true
-  boost_amount: 5  # Reduce nice value by this amount (increase priority)
-  max_priority: -20  # Never exceed this priority level
+  boost_amount: 5 # Reduce nice value by this amount (increase priority)
+  max_priority: -20 # Never exceed this priority level
 
 # Process filtering rules
 filter_rules:
   # Process IDs to never modify
   exclude_pids:
-    - 0  # swapper
-    - 1  # init/systemd
-    - 2  # kthreadd
-  
+    - 0 # swapper
+    - 1 # init/systemd
+    - 2 # kthreadd
+
   # Process name prefixes to exclude (kernel threads)
   exclude_prefixes:
     - "["
     - "kthreadd"
     - "ksoftirqd"
     - "kworker"
-  
+
   # Minimum CPU usage to consider for priority adjustment (percentage)
   min_cpu_threshold: 0.75
-  
+
   # Minimum memory usage to consider (percentage)
   min_memory_threshold: 0.75
-  
+
   # Short-lived process filtering
   # Prevents wasting resources on processes that start and stop quickly
-  min_process_age: 2.0  # Minimum process uptime in seconds before considering for adjustment
-  
+  min_process_age: 2.0 # Minimum process uptime in seconds before considering for adjustment
+
   # Process stability tracking
   # Only adjust processes that appear consistently across multiple scans
   stability_tracking:
     enabled: false
-    required_observations: 2  # Number of scans a process must appear in before adjustment
-    observation_window: 30  # Time window in seconds to track process stability
-
-  
+    required_observations: 2 # Number of scans a process must appear in before adjustment
+    observation_window: 30 # Time window in seconds to track process stability
 
 # Safety settings
 safety:
   # Require confirmation before modifying critical system processes
   confirm_critical: true
-  
+
   # Maximum number of processes to adjust in one operation
   max_processes_per_run: 100
-  
+
   # Allow restoring original priorities on cleanup
   enable_restore: true
-  
+
   # Dry run mode (log changes without applying)
   dry_run: false

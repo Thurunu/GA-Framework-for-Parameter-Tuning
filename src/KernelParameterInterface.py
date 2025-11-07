@@ -30,19 +30,25 @@ class KernelParameter:
 class KernelParameterInterface:
     """Interface for managing Linux kernel parameters"""
     
-    def __init__(self, backup_dir: str = "/tmp/kernel_optimizer_backup", config_file: str = None):
+    def __init__(self, backup_dir: str = "/tmp/kernel_optimizer_backup", config_file: str = None, dry_run: bool = False):
         self.backup_dir = Path(backup_dir)
         self.backup_dir.mkdir(exist_ok=True)
+        
+        # Setup logging first (before loading parameters)
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        
+        # Dry-run mode: simulate writes, still perform real reads when possible
+        self.dry_run = dry_run
         
         # Load kernel parameters from YAML configuration
         self.optimization_parameters = self._load_parameters(config_file)
         
-        # Setup logging first (before loading current values)
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger(__name__)
-        
         # Load current values
         self._load_current_values()
+        
+        # Check parameter availability and warn about unavailable ones
+        self._check_system_compatibility()
     
     def _load_parameters(self, config_file: str = None) -> Dict[str, KernelParameter]:
         """Load kernel parameter definitions from YAML configuration file"""
@@ -103,6 +109,27 @@ class KernelParameterInterface:
                 subsystem='memory'
             )
         }
+    
+    def _check_system_compatibility(self):
+        """Check which parameters are available on this system"""
+        if os.name != 'posix':
+            self.logger.info("Running on Windows - parameter checks skipped")
+            return
+        
+        unavailable_params = []
+        for param_name in list(self.optimization_parameters.keys()):
+            if not self.check_parameter_availability(param_name):
+                unavailable_params.append(param_name)
+        
+        if unavailable_params:
+            self.logger.warning(
+                "The following parameters are not available on this system and will be skipped: %s",
+                ", ".join(unavailable_params)
+            )
+            self.logger.info(
+                "This may be due to: kernel version, missing kernel modules, or system configuration. "
+                "Optimization will continue with available parameters only."
+            )
     
     def _load_current_values(self):
         """Load current kernel parameter values"""
@@ -167,29 +194,103 @@ class KernelParameterInterface:
     def _write_parameter(self, param_name: str, value: Any) -> bool:
         """Write a kernel parameter value"""
         try:
+            # In dry-run mode, simulate success for known/available params after validation
+            if getattr(self, 'dry_run', False):
+                # Only simulate for available parameters
+                if os.name != 'posix' or self.check_parameter_availability(param_name):
+                    self.logger.info("[dry-run] Would set %s = %s", param_name, value)
+                    return True
+                self.logger.warning("[dry-run] Parameter %s not available, skipping", param_name)
+                return False
+            
             # Check if running on Linux/Unix system
             if os.name == 'posix':
-                # Convert value to string
-                str_value = str(int(value))
-                print("------------------")
-                # Use sysctl to write parameter
+                # Convert value to string while preserving multi-value tokens
+                if isinstance(value, (int, float)):
+                    str_value = str(int(value)) if isinstance(value, int) or float(value).is_integer() else str(float(value))
+                else:
+                    # Accept strings like "4 4 1 7" or "4096 87380 6291456"
+                    str_value = str(value).strip()
+                
+                # Try sysctl method first
                 result = subprocess.run(
                     ['sysctl', '-w', f'{param_name}={str_value}'],
                     capture_output=True,
                     text=True,
-                    check=True
+                    check=False  # Don't raise exception, check manually
                 )
                 
-                self.logger.info("Set %s = %s", param_name, str_value)
-                return True
+                if result.returncode == 0:
+                    self.logger.info("Set %s = %s", param_name, str_value)
+                    return True
+                else:
+                    # Log the actual error from sysctl
+                    error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                    self.logger.warning("sysctl failed for %s: %s", param_name, error_msg)
+                    
+                    # Try alternative method: write directly to /proc/sys
+                    proc_path = f"/proc/sys/{param_name.replace('.', '/')}"
+                    try:
+                        with open(proc_path, 'w', encoding='utf-8') as f:
+                            f.write(str_value)
+                        self.logger.info("Set %s = %s (via /proc/sys)", param_name, str_value)
+                        return True
+                    except (FileNotFoundError, PermissionError, OSError) as proc_error:
+                        self.logger.error(
+                            "Failed to set %s = %s: Parameter may not exist or is read-only. "
+                            "sysctl error: %s, /proc/sys error: %s",
+                            param_name, str_value, error_msg, str(proc_error)
+                        )
+                        return False
             else:
                 # Windows - simulate successful write for testing
                 print(f"Simulated setting {param_name} = {value} (Windows)")
                 return True
                 
-        except subprocess.CalledProcessError as e:
-            self.logger.error("Failed to set %s = %s: %s", param_name, value, e)
+        except Exception as e:
+            self.logger.error("Unexpected error setting %s = %s: %s", param_name, value, e)
             return False
+
+    # Public helper APIs expected by integration tests
+    def set_parameter(self, param_name: str, value: Any) -> bool:
+        """Set a single parameter value with validation and dry-run support"""
+        # If we know the parameter, validate range and track current_value
+        if param_name in self.optimization_parameters:
+            param = self.optimization_parameters[param_name]
+            if not self.check_parameter_availability(param_name) and os.name == 'posix':
+                self.logger.warning("Parameter %s not available on this system", param_name)
+                return False
+            if not self._validate_parameter_value(param, value):
+                self.logger.warning("Rejected %s=%s due to bounds [%s, %s]", param_name, value, param.min_value, param.max_value)
+                return False
+            success = self._write_parameter(param_name, value)
+            if success:
+                # Update in-memory current value on success (or dry-run)
+                param.current_value = value
+            return success
+        else:
+            # Unknown parameter: attempt write only if not in dry-run and on posix; otherwise skip
+            if getattr(self, 'dry_run', False):
+                self.logger.info("[dry-run] Unknown parameter %s, skipping", param_name)
+                return False
+            return self._write_parameter(param_name, value)
+
+    def get_parameter(self, param_name: str) -> Optional[Any]:
+        """Read a parameter value; prefer live read, fall back to cached/default"""
+        try:
+            value = self._read_parameter(param_name)
+            return value
+        except Exception:
+            # Fallback to known parameter cache
+            param = self.optimization_parameters.get(param_name)
+            return param.current_value if param else None
+
+    def validate_parameter(self, param_name: str, value: Any) -> bool:
+        """Validate a value against known parameter bounds; True if unknown"""
+        param = self.optimization_parameters.get(param_name)
+        if not param:
+            return True
+        return self._validate_parameter_value(param, value)
     
     def backup_current_parameters(self) -> str:
         """Create backup of current kernel parameters"""
@@ -232,6 +333,38 @@ class KernelParameterInterface:
             self.logger.error("Failed to restore from backup: %s", e)
             return False
     
+    def check_parameter_availability(self, param_name: str) -> bool:
+        """Check if a kernel parameter exists and is writable on the system"""
+        if os.name != 'posix':
+            return True  # On Windows, simulate availability for testing
+        
+        # Try to read the parameter
+        try:
+            result = subprocess.run(
+                ['sysctl', '-n', param_name],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode == 0:
+                return True
+            
+            # Try /proc/sys path
+            proc_path = f"/proc/sys/{param_name.replace('.', '/')}"
+            return os.path.exists(proc_path) and os.access(proc_path, os.R_OK)
+        except Exception:
+            return False
+    
+    def get_available_parameters(self) -> Dict[str, KernelParameter]:
+        """Get only the parameters that are available on this system"""
+        available = {}
+        for param_name, param in self.optimization_parameters.items():
+            if self.check_parameter_availability(param_name):
+                available[param_name] = param
+            else:
+                self.logger.info("Parameter %s is not available on this system, excluding from optimization", param_name)
+        return available
+    
     def apply_parameter_set(self, parameters: Dict[str, Any]) -> Dict[str, bool]:
         """Apply a set of kernel parameters"""
         results = {}
@@ -241,6 +374,12 @@ class KernelParameterInterface:
         
         for param_name, value in parameters.items():
             if param_name in self.optimization_parameters:
+                # Check if parameter is available on this system
+                if not self.check_parameter_availability(param_name):
+                    results[param_name] = False
+                    self.logger.warning("Parameter %s is not available on this system, skipping", param_name)
+                    continue
+                
                 # Validate value is within bounds
                 param = self.optimization_parameters[param_name]
                 if self._validate_parameter_value(param, value):

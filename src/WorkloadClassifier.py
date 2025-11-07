@@ -21,8 +21,9 @@ class ProcessInfo:
     memory_percent: float
     io_read_bytes: int
     io_write_bytes: int
-    network_connections: int
-    start_time: float
+    io_rate_bytes_per_sec: float = 0.0  # I/O rate in bytes per second
+    network_connections: int = 0
+    start_time: float = 0.0
     workload_type: str = "unknown"
 
 
@@ -148,13 +149,12 @@ class WorkloadClassifier:
         if proc_info.memory_percent > memory_threshold:
             return 'memory_intensive'
         
-        # I/O-intensive check
+        # I/O-intensive check (use rate, not total accumulated bytes)
         io_threshold = self.fallback_thresholds.get(
             'io_intensive', {}
-        ).get('io_bytes_per_second', 1000000)
+        ).get('io_bytes_per_second', 1000000)  # Default 1MB/s
         
-        total_io = proc_info.io_read_bytes + proc_info.io_write_bytes
-        if total_io > io_threshold:
+        if proc_info.io_rate_bytes_per_sec > io_threshold:
             return 'io_intensive'
         
         # Network-intensive check

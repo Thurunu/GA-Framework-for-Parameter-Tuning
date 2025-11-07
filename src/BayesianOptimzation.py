@@ -32,6 +32,8 @@ class OptimizationResult:
     evaluation_history: List[Tuple[Dict[str, Any], float]]  # List of (parameters, score) tuples
     convergence_reached: bool  # Whether optimization met convergence criteria
     optimization_time: float  # Total time taken for optimization process
+    # Compatibility alias expected by some tests
+    total_evaluations: int = 0
 
 
 class BayesianOptimizer:
@@ -45,7 +47,8 @@ class BayesianOptimizer:
                  initial_samples: int = 5,
                  max_iterations: int = 50,
                  convergence_threshold: float = 1e-6,
-                 random_seed: int = 42):
+                 random_seed: int = 42,
+                 acq_optimizer: str = 'auto'):
         """
         Purpose: Initialize optimizer settings and parameter bounds.
         Use case: Called when creating a new BayesianOptimizer instance.
@@ -75,6 +78,13 @@ class BayesianOptimizer:
             'gp_hedge': 'gp_hedge'
         }
         self.acquisition_function = acq_map.get(acquisition_function.lower(), 'EI')
+        # Acquisition optimizer strategy: 'auto' (default skopt), 'lbfgs' or 'sampling'
+        acq_opt_map = {
+            'auto': 'auto',
+            'lbfgs': 'lbfgs',
+            'sampling': 'sampling'
+        }
+        self.acq_optimizer = acq_opt_map.get(str(acq_optimizer).lower(), 'auto')
         
         self.initial_samples = initial_samples
         self.max_iterations = max_iterations
@@ -84,6 +94,11 @@ class BayesianOptimizer:
         # Storage for optimization history
         self.best_score = -np.inf
         self.best_parameters = None
+        # Compatibility fields for external scripts/tests
+        # history: list of objective scores (higher is better)
+        self.history = []
+        # best_params: alias for best_parameters
+        self.best_params = None
         self.optimization_result = None
 
     def _parameters_to_dict(self, param_list: List[float]) -> Dict[str, float]:
@@ -100,6 +115,11 @@ class BayesianOptimizer:
         """
         start_time = time.time()
         evaluation_history = []
+        # Reset per-run state
+        self.history = []
+        self.best_score = -np.inf
+        self.best_parameters = None
+        self.best_params = None
         
         print(f"Starting Bayesian Optimization with {self.max_iterations} iterations...")
         print(f"Using acquisition function: {self.acquisition_function}")
@@ -113,17 +133,23 @@ class BayesianOptimizer:
                 
                 # Store in history
                 evaluation_history.append((params.copy(), score))
+                self.history.append(score)
                 
                 # Update best result
                 if score > self.best_score:
                     self.best_score = score
                     self.best_parameters = params.copy()
+                    self.best_params = self.best_parameters
                 
                 print(f"Iteration {len(evaluation_history)}: Score = {score:.6f}")
                 
                 # Return negative score (skopt minimizes)
                 return -score
                 
+            except TimeoutError as e:
+                # Propagate timeout so callers can stop optimization gracefully
+                print(f"Timeout reached during evaluation: {e}")
+                raise
             except Exception as e:
                 print(f"Error evaluating parameters: {e}")
                 return 0.0  # Return neutral score on error
@@ -133,6 +159,7 @@ class BayesianOptimizer:
             func=objective_wrapper,
             dimensions=self.space,
             acq_func=self.acquisition_function,
+            acq_optimizer=self.acq_optimizer,
             n_calls=self.max_iterations,
             n_initial_points=self.initial_samples,
             random_state=self.random_seed,
@@ -158,7 +185,8 @@ class BayesianOptimizer:
             iteration_count=len(evaluation_history),
             evaluation_history=evaluation_history,
             convergence_reached=convergence_reached,
-            optimization_time=optimization_time
+            optimization_time=optimization_time,
+            total_evaluations=len(evaluation_history)
         )
     
     def adaptive_optimize(self, objective_function: Callable[[Dict[str, float]], float], 

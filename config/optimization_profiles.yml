@@ -5,8 +5,8 @@ profiles:
   database:
     workload_type: database
     strategy: HYBRID_SEQUENTIAL
-    evaluation_budget: 15
-    time_budget: 180.0  # 3 minutes
+    evaluation_budget: 20
+    time_budget: 300.0  # 5 minutes
     
     parameter_bounds:
       vm.swappiness: [1, 30]

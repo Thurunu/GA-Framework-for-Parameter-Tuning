@@ -12,7 +12,7 @@ import signal
 import os
 import yaml
 from typing import Dict, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import queue
 from pathlib import Path
 
@@ -25,6 +25,16 @@ from WorkloadCharacterizer import OptimizationStrategy
 from PerformanceMonitor import PerformanceMonitor
 from KernelParameterInterface import KernelParameterInterface
 from ProcessPriorityManager import ProcessPriorityManager
+
+# Import centralized management agent reporter
+try:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+    from agent_reporter import AgentReporter
+    CENTRALIZED_MANAGEMENT_ENABLED = True
+except ImportError:
+    print("Warning: AgentReporter not available. Running in standalone mode.")
+    CENTRALIZED_MANAGEMENT_ENABLED = False
+    AgentReporter = None
 
 @dataclass
 class OptimizationProfile:
@@ -131,6 +141,28 @@ class ContinuousOptimizer:
         self.kernel_interface = KernelParameterInterface()
         self.priority_manager = ProcessPriorityManager()  # New EEVDF support
         
+        # Initialize centralized management reporter (optional)
+        self.reporter = None
+        if CENTRALIZED_MANAGEMENT_ENABLED:
+            try:
+                master_url = os.getenv('MASTER_URL')
+                api_key = os.getenv('API_KEY')
+                if master_url:
+                    self.reporter = AgentReporter(
+                        agent_id=os.getenv('AGENT_ID', os.uname().nodename),
+                        master_url=master_url,
+                        api_key=api_key
+                    )
+                    # Register with master on startup
+                    print("🌍 Connecting to centralized management...")
+                    self.reporter.register()
+                    print(f"✓ Connected to centralized management at {master_url}")
+                else:
+                    print("Info: MASTER_URL not set. Running in standalone mode.")
+            except Exception as e:
+                print(f"Warning: Could not connect to centralized management: {e}")
+                self.reporter = None
+        
         # Optimization tracking
         self.current_profile: Optional[OptimizationProfile] = None
         self.last_optimization_time = 0
@@ -209,10 +241,51 @@ class ContinuousOptimizer:
         self.optimization_queue.put(workload_type)
         self._log(f"Scheduled optimization for workload: {workload_type}")
     
+    # this is for connecting to centralized management and handling commands
     def _optimization_worker(self):
         """Worker thread for running optimizations"""
+        last_heartbeat = 0
+        heartbeat_interval = 30.0  # Send heartbeat every 30 seconds
+        
         while self.running:
             try:
+                # Send heartbeat to centralized management
+                current_time = time.time()
+                if self.reporter and (current_time - last_heartbeat) >= heartbeat_interval:
+                    try:
+                        # Get current metrics and convert to dictionary
+                        metrics_obj = self.performance_monitor.get_current_metrics()
+                        
+                        if metrics_obj:
+                            # Convert PerformanceMetrics dataclass to dict
+                            metrics = asdict(metrics_obj)
+                        else:
+                            # Fallback: use average metrics if no current metrics
+                            metrics = self.performance_monitor.get_average_metrics(30) or {}
+                        
+                        # Get current workload from detector (if available)
+                        current_workload = None
+                        if hasattr(self.process_detector, 'current_workload_type'):
+                            current_workload = self.process_detector.current_workload_type
+                        
+                        self.reporter.send_heartbeat(
+                            metrics=metrics,
+                            workload_type=current_workload,
+                            optimization_score=None  # Could add optimization score tracking
+                        )
+                        last_heartbeat = current_time
+                    except Exception as e:
+                        self._log(f"Failed to send heartbeat: {e}")
+                
+                # Poll for commands from centralized management
+                if self.reporter:
+                    try:
+                        commands = self.reporter.poll_commands()
+                        for cmd in commands:
+                            self._execute_remote_command(cmd)
+                    except Exception as e:
+                        self._log(f"Failed to poll commands: {e}")
+                
                 # Wait for optimization request
                 workload_type = self.optimization_queue.get(timeout=1)
                 
@@ -240,8 +313,8 @@ class ContinuousOptimizer:
             profile = self.OPTIMIZATION_PROFILES[workload_type]
             self.current_profile = profile
             
-            self._log(f"Starting optimization for {workload_type} workload")
-            self._log(f"Strategy: {profile.strategy.value}, Budget: {profile.evaluation_budget}")
+            self._log(f"🚀 Starting optimization for {workload_type} workload")
+            self._log(f"🎯 Strategy: {profile.strategy.value}, 💰 Budget: {profile.evaluation_budget}")
             
             # Create backup
             backup_file = self.kernel_interface.backup_current_parameters()
@@ -306,10 +379,26 @@ class ContinuousOptimizer:
                 # Apply parameters
                 results = self.kernel_interface.apply_parameter_set(params)
                 
-                # Check if parameters were applied successfully
-                failed_params = [name for name, success in results.items() if not success]
+                # Separate failed params into unavailable vs actual failures
+                failed_params = []
+                unavailable_params = []
+                
+                for name, success in results.items():
+                    if not success:
+                        # Check if parameter is unavailable on this system
+                        if not self.kernel_interface.check_parameter_availability(name):
+                            unavailable_params.append(name)
+                        else:
+                            failed_params.append(name)
+                
+                # If there are actual failures (not just unavailable params), return penalty
                 if failed_params:
-                    return -1000.0  # Penalty for failed application
+                    self._log(f"Parameter application failed: {failed_params}")
+                    return -1000.0  # Penalty for actual failures
+                
+                # If only unavailable params, continue with available ones
+                if unavailable_params:
+                    self._log(f"Skipped unavailable parameters: {unavailable_params} (continuing with available params)")
                 
                 # Allow system to stabilize
                 time.sleep(2)
@@ -364,6 +453,77 @@ class ContinuousOptimizer:
             score += weights['network_throughput'] * net_score
         
         return score
+# this is for connecting to centralized management and handling commands
+    def _execute_remote_command(self, command: Dict):
+        """Execute command received from centralized management"""
+        cmd_id = command.get('id')
+        cmd_type = command.get('command_type')
+        params = command.get('parameters', {})
+        
+        self._log(f"Executing remote command: {cmd_type} (ID: {cmd_id})")
+        
+        try:
+            if cmd_type == 'update_parameters':
+                # Apply kernel parameters
+                self.kernel_interface.apply_parameter_set(params)
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id, 
+                        status='success',
+                        result={"message": "Parameters updated successfully"}
+                    )
+            
+            elif cmd_type == 'trigger_optimization':
+                # Manually trigger optimization
+                workload_type = params.get('workload_type', 'general')
+                self._schedule_optimization(workload_type)
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id,
+                        status='success',
+                        result={"message": f"Optimization scheduled for {workload_type}"}
+                    )
+            
+            elif cmd_type == 'get_metrics':
+                # Return current metrics
+                metrics = self.performance_monitor.get_current_metrics()
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id,
+                        status='success',
+                        result=metrics
+                    )
+            
+            elif cmd_type == 'restart_monitoring':
+                # Restart monitoring components
+                self.process_detector.stop_monitoring()
+                self.performance_monitor.stop_monitoring()
+                time.sleep(2)
+                self.process_detector.start_monitoring()
+                self.performance_monitor.start_monitoring()
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id,
+                        status='success',
+                        result={"message": "Monitoring restarted"}
+                    )
+            
+            else:
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id,
+                        status='failed',
+                        error=f"Unknown command type: {cmd_type}"
+                    )
+        
+        except Exception as e:
+            self._log(f"Command execution failed: {e}")
+            if self.reporter:
+                self.reporter.report_command_result(
+                    cmd_id,
+                    status='error',
+                    error=str(e)
+                )
     
     def _log(self, message: str):
         """Log message to file and console"""

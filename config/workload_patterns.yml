@@ -16,19 +16,19 @@ patterns:
       - 'mariadb.*'
       # - 'elasticsearch.*'
     
-  # web_server:
-  #   description: "Web servers and application servers"
-  #   process_patterns:
-  #     - 'nginx.*'
-  #     - 'apache.*'
-  #     - 'httpd.*'
-  #     - 'lighttpd.*'
-  #     - 'tomcat.*'
-  #     - 'jetty.*'
-  #     - 'gunicorn.*'
-  #     - 'uwsgi.*'
-  #     - 'node.*'
-  #     - 'npm.*'
+  web_server:
+    description: "Web servers and application servers"
+    process_patterns:
+      # - 'nginx.*'
+      - 'apache.*'
+      # - 'httpd.*'
+      # - 'lighttpd.*'
+      # - 'tomcat.*'
+      # - 'jetty.*'
+      # - 'gunicorn.*'
+      # - 'uwsgi.*'
+      # - 'node.*'
+      # - 'npm.*'
     
   # hpc_compute:
   #   description: "High-performance computing and scientific workloads"
@@ -56,9 +56,9 @@ patterns:
   #     - 'convert.*'
   #     - 'vlc.*'
     
-  compilation:
-    description: "Software compilation and build processes"
-    process_patterns:
+  # compilation:
+  #   description: "Software compilation and build processes"
+  #   process_patterns:
       # - 'gcc.*'
       # - 'g\+\+.*'
       # - 'clang.*'
@@ -70,13 +70,13 @@ patterns:
       # - 'cargo.*'
       # - 'mvn.*'
       # - 'gradle.*'
-      - 'python3.*'
+      # - 'python3.*'
     
-  io_intensive:
-    description: "I/O heavy operations like backup and file operations"
-    process_patterns:
+  # io_intensive:
+  #   description: "I/O heavy operations like backup and file operations"
+  #   process_patterns:
      
-      - 'find.*'
+  #     - 'find.*'
 
 # Fallback classification thresholds
 # Used when process doesn't match any pattern
@@ -88,7 +88,7 @@ fallback_thresholds:
     memory_percent: 50  # Memory usage > 50% → memory_intensive
   
   io_intensive:
-    io_bytes_per_second: 1000000  # I/O > 1MB/s → io_intensive
+    io_bytes_per_second: 10485760  # I/O > 10MB/s → io_intensive (increased from 1MB/s to reduce false positives)
   
   network_intensive:
     connection_count: 10  # Connections > 10 → network_intensive

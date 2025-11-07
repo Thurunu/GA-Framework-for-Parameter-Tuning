@@ -32,6 +32,19 @@ class GAOptimizationResult:
     convergence_reached: bool
     optimization_time: float
 
+    # Compatibility aliases expected by some tests
+    @property
+    def best_score(self) -> float:
+        return self.best_fitness
+
+    @property
+    def best_parameters(self) -> Dict[str, float]:
+        return self.best_individual.parameters if self.best_individual else {}
+
+    @property
+    def total_generations(self) -> int:
+        return self.generation_count
+
 
 class GeneticAlgorithm:
     """Genetic Algorithm for kernel parameter optimization using PyGAD"""
@@ -76,13 +89,20 @@ class GeneticAlgorithm:
             for bounds in parameter_bounds.values()
         ]
 
-        self.population_size = population_size
-        self.max_generations = max_generations
+        # Enforce minimum population size for PyGAD (must be at least 4)
+        # - Need at least 2 for mating
+        # - Need elitism
+        # - Better to have a few more for diversity
+        self.population_size = max(4, population_size)
+        if population_size < 4:
+            print(f"⚠️  Warning: Population size increased from {population_size} to 4 (minimum required by PyGAD)")
+        
+        self.max_generations = max(1, max_generations)
         self.mutation_rate = mutation_rate
         self.initial_mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
         self.elitism_ratio = elitism_ratio
-        self.tournament_size = tournament_size
+        self.tournament_size = min(tournament_size, self.population_size)  # Tournament size can't exceed population
         self.convergence_threshold = convergence_threshold
         self.convergence_patience = convergence_patience
 
@@ -97,6 +117,8 @@ class GeneticAlgorithm:
         self.best_individual = None
         self.best_fitness = -np.inf
         self.generation_count = 0
+    # Alias for external tests expecting 'current_generation'
+        self.current_generation = 0
         self.fitness_history = []
         self.population_history = []
         self.stagnation_count = 0
@@ -106,8 +128,11 @@ class GeneticAlgorithm:
         self.ga_instance = None
 
         # Elite size calculation
-        self.elite_size = max(
-            1, int(self.population_size * self.elitism_ratio))
+        # Elite size must be < population_size (need at least 2 for mating)
+        self.elite_size = max(1, min(
+            int(self.population_size * self.elitism_ratio), 
+            self.population_size - 2
+        ))
 
     def _solution_to_dict(self, solution: np.ndarray) -> Dict[str, float]:
         """Convert PyGAD solution array to parameter dictionary"""
@@ -122,10 +147,20 @@ class GeneticAlgorithm:
         try:
             params = self._solution_to_dict(solution)
             fitness = self.objective_function(params)
+            
+            # Check for budget exceeded penalty
+            if fitness <= -10000.0:
+                # Budget exceeded - don't evaluate more solutions
+                return fitness
+            
             return fitness
+        except TimeoutError as e:
+            # Propagate timeout so external wrappers can stop the run cleanly
+            print(f"Timeout during evaluation: {e}")
+            raise
         except Exception as e:
             print(f"Error evaluating solution: {e}")
-            return -np.inf
+            return -np.inf  # Return very low fitness for errors
 
     def _on_generation(self, ga_instance):
         """Callback called after each generation"""
@@ -144,6 +179,7 @@ class GeneticAlgorithm:
 
         self.fitness_history.append(self.best_fitness)
         self.generation_count = generation
+        self.current_generation = generation
 
         # Store population snapshot (convert to Individual objects)
         population_snapshot = []
@@ -238,16 +274,28 @@ class GeneticAlgorithm:
         if use_advanced_features:
             print(f"  • Adaptive mutation enabled")
 
+        # Validate PyGAD parameters before creating instance
+        num_parents = max(2, self.population_size - self.elite_size)
+        
+        # Additional safety check
+        if num_parents > self.population_size:
+            num_parents = self.population_size // 2
+            print(f"⚠️  Adjusted num_parents_mating to {num_parents}")
+        
+        if self.elite_size >= self.population_size:
+            self.elite_size = max(1, self.population_size // 2)
+            print(f"⚠️  Adjusted elite_size to {self.elite_size}")
+
         # Configure PyGAD
         self.ga_instance = pygad.GA(
             num_generations=self.max_generations,
-            num_parents_mating=max(2, self.population_size - self.elite_size),
+            num_parents_mating=num_parents,
             fitness_func=self._fitness_wrapper,
             sol_per_pop=self.population_size,
             num_genes=len(self.parameter_names),
             gene_space=self.gene_space,
             parent_selection_type="tournament",
-            K_tournament=self.tournament_size,
+            K_tournament=min(self.tournament_size, self.population_size),  # Ensure valid tournament size
             keep_elitism=self.elite_size,
             crossover_type="single_point",
             mutation_type="random",

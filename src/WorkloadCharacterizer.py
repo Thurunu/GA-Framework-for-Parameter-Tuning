@@ -16,6 +16,9 @@ class OptimizationStrategy(Enum):
     HYBRID_SEQUENTIAL = "hybrid_sequential"
     HYBRID_PARALLEL = "hybrid_parallel"
     ADAPTIVE = "adaptive"
+    # Backward-compatibility aliases used by some tests
+    BAYESIAN = BAYESIAN_ONLY
+    GENETIC = GENETIC_ONLY
 
 
 class WorkloadCharacterizer:
@@ -64,12 +67,13 @@ class WorkloadCharacterizer:
         }
 
     @staticmethod
-    def suggest_strategy(parameter_bounds: Dict[str, Tuple[float, float]],
+    def suggest_strategy(parameter_bounds,
                          evaluation_budget: int = 100,
                          time_budget: float = 300.0) -> OptimizationStrategy:
         """
-        Suggests an optimization strategy based on the characteristics of the parameter space 
-        and resource constraints.
+        Suggests an optimization strategy based on either:
+        - characteristics of the parameter space (when a dict of bounds is provided), or
+        - the detected workload type (when a string like 'cpu_intensive' is provided).
         
         This function analyzes the provided parameter bounds using WorkloadCharacterizer to 
         determine the number of parameters and the complexity of the optimization problem. 
@@ -85,7 +89,7 @@ class WorkloadCharacterizer:
         - ADAPTIVE: Default strategy for other scenarios.
         
         Args:
-            parameter_bounds: Dictionary specifying the bounds for each parameter.
+            parameter_bounds: Either a dict of bounds {name: (min,max)} or a workload type string.
             evaluation_budget: Maximum number of allowed evaluations. Defaults to 100.
             time_budget: Maximum allowed optimization time in seconds. Defaults to 300.0.
         
@@ -93,6 +97,19 @@ class WorkloadCharacterizer:
             OptimizationStrategy: The suggested optimization strategy based on the problem 
             characteristics.
         """
+        # If a workload type string is provided, use simple heuristic mapping
+        if isinstance(parameter_bounds, str):
+            workload_type = parameter_bounds.lower()
+            if workload_type in {"cpu_intensive", "cpu", "compute_heavy"}:
+                # Favor Bayesian or Adaptive for CPU-heavy workloads
+                return OptimizationStrategy.BAYESIAN_ONLY if evaluation_budget <= 50 else OptimizationStrategy.ADAPTIVE
+            if workload_type in {"database", "io_intensive", "io", "storage"}:
+                # Favor GA or Adaptive for IO/database workloads
+                return OptimizationStrategy.GENETIC_ONLY if evaluation_budget > 50 else OptimizationStrategy.ADAPTIVE
+            # Default for unknown/general workloads
+            return OptimizationStrategy.ADAPTIVE
+
+        # Otherwise treat as parameter bounds dict
         analysis = WorkloadCharacterizer.analyze_parameter_space(parameter_bounds)
 
         # Decision logic based on problem characteristics

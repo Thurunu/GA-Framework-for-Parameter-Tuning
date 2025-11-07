@@ -12,10 +12,26 @@ from dataclasses import dataclass
 import copy
 
 # Import our optimization components
-from BayesianOptimzation import BayesianOptimizer, OptimizationResult
-from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
-from ProcessPriorityManager import ProcessPriorityManager, PriorityClass
-from WorkloadCharacterizer import WorkloadCharacterizer, OptimizationStrategy
+# Robust imports to support running as a package (tests) and as a script
+try:
+    # When imported as src.HybridOptimizationEngine
+    from .BayesianOptimzation import BayesianOptimizer, OptimizationResult
+    from .GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
+    from .ProcessPriorityManager import ProcessPriorityManager, PriorityClass
+    from .WorkloadCharacterizer import WorkloadCharacterizer, OptimizationStrategy
+except Exception:  # pragma: no cover - fallback paths
+    try:
+        # When top-level imports via src package are available
+        from src.BayesianOptimzation import BayesianOptimizer, OptimizationResult
+        from src.GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
+        from src.ProcessPriorityManager import ProcessPriorityManager, PriorityClass
+        from src.WorkloadCharacterizer import WorkloadCharacterizer, OptimizationStrategy
+    except Exception:
+        # When executed directly with CWD set to src
+        from BayesianOptimzation import BayesianOptimizer, OptimizationResult
+        from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
+        from ProcessPriorityManager import ProcessPriorityManager, PriorityClass
+        from WorkloadCharacterizer import WorkloadCharacterizer, OptimizationStrategy
 
 
 @dataclass
@@ -125,18 +141,24 @@ class HybridOptimizationEngine:
         def limited_objective(params: Dict[str, float]) -> float:
             # Check time budget
             if time.time() - start_time > self.time_budget:
-                raise RuntimeError("Time budget exceeded")
-
+                print("⏰ Time budget exceeded - returning penalty score")
+                return -10000.0  # Return penalty instead of raising exception
+            
             # Check evaluation budget
             if self.total_evaluations >= self.evaluation_budget:
-                raise RuntimeError("Evaluation budget exceeded")
+                print(f"💰 Evaluation budget exceeded ({self.total_evaluations}/{self.evaluation_budget}) - returning penalty score")
+                return -10000.0  # Return penalty instead of raising exception
 
             # Evaluate original objective
             score = original_objective(params)
 
-            # Track evaluation
-            self.total_evaluations += 1
-            self.evaluation_history.append((params.copy(), score))
+            # Only count successful evaluations (not failed parameter applications)
+            if score > -1000.0:  # -1000 is the penalty for failed parameter application
+                self.total_evaluations += 1
+                self.evaluation_history.append((params.copy(), score))
+            else:
+                # Failed evaluation - don't count against budget
+                print(f"⚠️  Parameter application failed - not counting against budget")
 
             return score
 
@@ -182,14 +204,20 @@ class HybridOptimizationEngine:
             )
 
         # Phase 2: Genetic Algorithm (exploitation + further exploration)
+        print("✅ Bayesian phase complete.")
         print("Phase 2: Genetic Algorithm for exploitation...")
         remaining_budget = self.evaluation_budget - self.total_evaluations
+        
+        print(f"📊 Budget status: {self.total_evaluations}/{self.evaluation_budget} used, {remaining_budget} remaining")
 
         if remaining_budget > 0:
             # Initialize GA population with Bayesian results
-            genetic_pop_size = min(
-                remaining_budget // 10, self.genetic_config['population_size'])
-            genetic_generations = remaining_budget // genetic_pop_size if genetic_pop_size > 0 else 1
+            # Ensure minimum population size of 4 for PyGAD to work properly
+            genetic_pop_size = max(4, min(
+                remaining_budget // 10, self.genetic_config['population_size']))
+            genetic_generations = max(1, remaining_budget // genetic_pop_size)
+            
+            print(f"🧬 Genetic Algorithm config: population={genetic_pop_size}, generations={genetic_generations}")
 
             self.genetic_config.update({
                 'population_size': genetic_pop_size,
@@ -199,11 +227,11 @@ class HybridOptimizationEngine:
             self.genetic_optimizer = self._initialize_genetic_optimizer()
 
             # Seed GA population with BO results
-            if bayesian_result.best_parameters:
-                best_individual = Individual(
-                    parameters=bayesian_result.best_parameters)
-                self.genetic_optimizer.population = [
-                    best_individual] + self.genetic_optimizer.population[1:]
+            # if bayesian_result.best_parameters:
+            #     best_individual = Individual(
+            #         parameters=bayesian_result.best_parameters)
+            #     self.genetic_optimizer.population = [
+            #         best_individual] + self.genetic_optimizer.population[1:]
 
             try:
                 genetic_result = self.genetic_optimizer.optimize(
@@ -263,8 +291,9 @@ class HybridOptimizationEngine:
 
                 remaining_budget = self.evaluation_budget - self.total_evaluations
                 if remaining_budget > 0:
-                    genetic_pop_size = min(remaining_budget // 8, 25)
-                    genetic_generations = remaining_budget // genetic_pop_size if genetic_pop_size > 0 else 1
+                    # Ensure minimum population size of 4 for PyGAD
+                    genetic_pop_size = max(4, min(remaining_budget // 8, 25))
+                    genetic_generations = max(1, remaining_budget // genetic_pop_size)
 
                     self.genetic_config.update({
                         'population_size': genetic_pop_size,
@@ -296,10 +325,10 @@ class HybridOptimizationEngine:
         start_time = time.time()
 
         print(
-            f"Starting Hybrid Optimization with strategy: {self.strategy.value}")
-        print(f"Parameter bounds: {self.parameter_bounds}")
-        print(f"Evaluation budget: {self.evaluation_budget}")
-        print(f"Time budget: {self.time_budget}s")
+            f"🚀 Starting Hybrid Optimization with strategy: {self.strategy.value}")
+        print(f"⚙️ Parameter bounds: {self.parameter_bounds}")
+        print(f"💰 Evaluation budget: {self.evaluation_budget}")
+        print(f"⏳ Time budget: {self.time_budget}s")
 
         # Create budget-limited objective function
         limited_objective = self._create_budget_limited_objective(
