@@ -48,6 +48,6 @@ def load_optimization_results(filename):
 
 if __name__ == "__main__":
     # Load results from the JSON file
-    result = load_optimization_results('./tests/test_bayesian_optimization_results.json')
+    result = load_optimization_results('tests/test_bayesian_optimization_results.json')
 
     plot_optimization_history(result)

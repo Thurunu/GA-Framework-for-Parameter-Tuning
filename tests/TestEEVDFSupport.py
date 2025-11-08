@@ -13,7 +13,7 @@ def test_updated_kernel_interface():
     print("Testing Updated Kernel Parameter Interface (EEVDF Support)...")
     
     try:
-        from KernelParameterInterface import KernelParameterInterface
+        from src.KernelParameterInterface import KernelParameterInterface
         
         print("  ✓ Initializing KernelParameterInterface...")
         interface = KernelParameterInterface()
@@ -74,7 +74,7 @@ def test_process_priority_manager():
     print("\nTesting Process Priority Manager (EEVDF Support)...")
     
     try:
-        from ProcessPriorityManager import ProcessPriorityManager, PriorityClass
+        from src.ProcessPriorityManager import ProcessPriorityManager, PriorityClass
         
         print("  ✓ Initializing ProcessPriorityManager...")
         manager = ProcessPriorityManager()
@@ -126,7 +126,7 @@ def test_continuous_optimizer_eevdf():
     print("\nTesting Continuous Optimizer (EEVDF Support)...")
     
     try:
-        from ContinuousOptimizer import ContinuousOptimizer
+        from src.ContinuousOptimizer import ContinuousOptimizer
         
         print("  ✓ Initializing ContinuousOptimizer...")
         optimizer = ContinuousOptimizer(

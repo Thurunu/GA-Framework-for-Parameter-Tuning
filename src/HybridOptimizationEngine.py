@@ -9,22 +9,29 @@ import json
 import time
 from typing import Dict, List, Tuple, Optional, Callable, Any, Union
 from dataclasses import dataclass
-from enum import Enum
 import copy
 
 # Import our optimization components
-from BayesianOptimzation import BayesianOptimizer, OptimizationResult
-from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
-from ProcessPriorityManager import ProcessPriorityManager, PriorityClass
-
-
-class OptimizationStrategy(Enum):
-    """Optimization strategy types"""
-    BAYESIAN_ONLY = "bayesian_only"
-    GENETIC_ONLY = "genetic_only"
-    HYBRID_SEQUENTIAL = "hybrid_sequential"
-    HYBRID_PARALLEL = "hybrid_parallel"
-    ADAPTIVE = "adaptive"
+# Robust imports to support running as a package (tests) and as a script
+try:
+    # When imported as src.HybridOptimizationEngine
+    from .BayesianOptimzation import BayesianOptimizer, OptimizationResult
+    from .GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
+    from .ProcessPriorityManager import ProcessPriorityManager, PriorityClass
+    from .WorkloadCharacterizer import WorkloadCharacterizer, OptimizationStrategy
+except Exception:  # pragma: no cover - fallback paths
+    try:
+        # When top-level imports via src package are available
+        from src.BayesianOptimzation import BayesianOptimizer, OptimizationResult
+        from src.GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
+        from src.ProcessPriorityManager import ProcessPriorityManager, PriorityClass
+        from src.WorkloadCharacterizer import WorkloadCharacterizer, OptimizationStrategy
+    except Exception:
+        # When executed directly with CWD set to src
+        from BayesianOptimzation import BayesianOptimizer, OptimizationResult
+        from GeneticAlgorithm import GeneticAlgorithm, AdvancedGeneticAlgorithm, GAOptimizationResult, Individual
+        from ProcessPriorityManager import ProcessPriorityManager, PriorityClass
+        from WorkloadCharacterizer import WorkloadCharacterizer, OptimizationStrategy
 
 
 @dataclass
@@ -39,83 +46,6 @@ class HybridOptimizationResult:
     optimization_time: float = 0.0
     convergence_reached: bool = False
     switch_points: List[Tuple[int, str]] = None
-
-
-class WorkloadCharacterizer:
-    """Analyzes workload characteristics to suggest optimization strategy"""
-
-    @staticmethod
-    def analyze_parameter_space(parameter_bounds: Dict[str, Tuple[float, float]]) -> Dict[str, Any]:
-        """Analyze characteristics of parameter space"""
-        num_params = len(parameter_bounds)
-        # print("Analyze characteristics of parameter space, parameter bounds: ", parameter_bounds.items())
-        # Calculate parameter space size
-        space_size = 1
-        range_ratios = []
-
-        for _, (min_val, max_val) in parameter_bounds.items():
-            param_range = max_val - min_val
-            space_size *= param_range
-
-            # Calculate range ratio (how large is the range)
-            if min_val != 0:
-                range_ratios.append(param_range / abs(min_val))
-            else:
-                range_ratios.append(param_range)
-
-        avg_range_ratio = np.mean(range_ratios) if range_ratios else 1.0
-
-        return {
-            "num_parameters": num_params,
-            "space_size": space_size,
-            "avg_range_ratio": avg_range_ratio,
-            "dimensionality": "high" if num_params > 10 else "medium" if num_params > 5 else "low",
-            "complexity": "high" if space_size > 1e12 else "medium" if space_size > 1e6 else "low"
-        }
-
-    """
-        Suggests an optimization strategy based on the characteristics of the parameter space and resource constraints.
-        This function analyzes the provided parameter bounds using WorkloadCharacterizer to determine the number of parameters and the complexity of the optimization problem. 
-        Based on this analysis, along with the evaluation and time budgets, it selects an appropriate optimization strategy from the following options:
-            - BAYESIAN_ONLY: For small parameter spaces (<= 5 parameters) and limited evaluation budget (<= 50), or when the time budget is very short (< 60 seconds).
-            - GENETIC_ONLY: For large parameter spaces (> 15 parameters) or when the problem complexity is high.
-            - HYBRID_SEQUENTIAL: For cases with a large evaluation budget (> 200).
-            - ADAPTIVE: Default strategy for other scenarios.
-        Args:
-            parameter_bounds (Dict[str, Tuple[float, float]]): Dictionary specifying the bounds for each parameter.
-            evaluation_budget (int, optional): Maximum number of allowed evaluations. Defaults to 100.
-            time_budget (float, optional): Maximum allowed optimization time in seconds. Defaults to 300.0.
-        Returns:
-            OptimizationStrategy: The suggested optimization strategy based on the problem characteristics.
-        # Summary:
-        # - Analyzes parameter space using WorkloadCharacterizer.
-        # - Chooses strategy based on number of parameters, complexity, evaluation budget, and time budget.
-        # - Returns one of several predefined strategies (Bayesian, Genetic, Hybrid, Adaptive).
-        """
-    @staticmethod
-    def suggest_strategy(parameter_bounds: Dict[str, Tuple[float, float]],
-                         evaluation_budget: int = 100,
-                         time_budget: float = 300.0) -> OptimizationStrategy:
-        """Suggest optimization strategy based on problem characteristics"""
-
-        analysis = WorkloadCharacterizer.analyze_parameter_space(
-            parameter_bounds)
-
-        # Decision logic based on problem characteristics
-        if analysis["num_parameters"] <= 5 and evaluation_budget <= 50:
-            return OptimizationStrategy.BAYESIAN_ONLY
-
-        elif analysis["num_parameters"] > 15 or analysis["complexity"] == "high":
-            return OptimizationStrategy.GENETIC_ONLY
-
-        elif time_budget < 60:  # Short time budget
-            return OptimizationStrategy.BAYESIAN_ONLY
-
-        elif evaluation_budget > 200:  # Large budget
-            return OptimizationStrategy.HYBRID_SEQUENTIAL
-
-        else:
-            return OptimizationStrategy.ADAPTIVE
 
 
 class HybridOptimizationEngine:
@@ -160,12 +90,20 @@ class HybridOptimizationEngine:
             'crossover_rate': 0.8
         }
 
-        # Auto-suggest strategy if adaptive
+        # Store original strategy choice
+        self.original_strategy = strategy
+        
+        # Auto-suggest strategy ONLY if user explicitly chose ADAPTIVE
+        # Otherwise, respect the user's explicit choice (HYBRID_SEQUENTIAL, etc.)
         if self.strategy == OptimizationStrategy.ADAPTIVE:
-            self.strategy = WorkloadCharacterizer.suggest_strategy(
+            suggested_strategy = WorkloadCharacterizer.suggest_strategy(
                 parameter_bounds, evaluation_budget, time_budget
             )
+            self.strategy = suggested_strategy
             print(f"Auto-selected strategy: {self.strategy.value}")
+        else:
+            # User explicitly chose a strategy, respect it
+            print(f"Using configured strategy: {self.strategy.value}")
 
         # Initialize optimizers
         self.bayesian_optimizer = None
@@ -203,18 +141,24 @@ class HybridOptimizationEngine:
         def limited_objective(params: Dict[str, float]) -> float:
             # Check time budget
             if time.time() - start_time > self.time_budget:
-                raise RuntimeError("Time budget exceeded")
-
+                print("⏰ Time budget exceeded - returning penalty score")
+                return -10000.0  # Return penalty instead of raising exception
+            
             # Check evaluation budget
             if self.total_evaluations >= self.evaluation_budget:
-                raise RuntimeError("Evaluation budget exceeded")
+                print(f"💰 Evaluation budget exceeded ({self.total_evaluations}/{self.evaluation_budget}) - returning penalty score")
+                return -10000.0  # Return penalty instead of raising exception
 
             # Evaluate original objective
             score = original_objective(params)
 
-            # Track evaluation
-            self.total_evaluations += 1
-            self.evaluation_history.append((params.copy(), score))
+            # Only count successful evaluations (not failed parameter applications)
+            if score > -1000.0:  # -1000 is the penalty for failed parameter application
+                self.total_evaluations += 1
+                self.evaluation_history.append((params.copy(), score))
+            else:
+                # Failed evaluation - don't count against budget
+                print(f"⚠️  Parameter application failed - not counting against budget")
 
             return score
 
@@ -260,14 +204,20 @@ class HybridOptimizationEngine:
             )
 
         # Phase 2: Genetic Algorithm (exploitation + further exploration)
+        print("✅ Bayesian phase complete.")
         print("Phase 2: Genetic Algorithm for exploitation...")
         remaining_budget = self.evaluation_budget - self.total_evaluations
+        
+        print(f"📊 Budget status: {self.total_evaluations}/{self.evaluation_budget} used, {remaining_budget} remaining")
 
         if remaining_budget > 0:
             # Initialize GA population with Bayesian results
-            genetic_pop_size = min(
-                remaining_budget // 10, self.genetic_config['population_size'])
-            genetic_generations = remaining_budget // genetic_pop_size if genetic_pop_size > 0 else 1
+            # Ensure minimum population size of 4 for PyGAD to work properly
+            genetic_pop_size = max(4, min(
+                remaining_budget // 10, self.genetic_config['population_size']))
+            genetic_generations = max(1, remaining_budget // genetic_pop_size)
+            
+            print(f"🧬 Genetic Algorithm config: population={genetic_pop_size}, generations={genetic_generations}")
 
             self.genetic_config.update({
                 'population_size': genetic_pop_size,
@@ -277,11 +227,11 @@ class HybridOptimizationEngine:
             self.genetic_optimizer = self._initialize_genetic_optimizer()
 
             # Seed GA population with BO results
-            if bayesian_result.best_parameters:
-                best_individual = Individual(
-                    parameters=bayesian_result.best_parameters)
-                self.genetic_optimizer.population = [
-                    best_individual] + self.genetic_optimizer.population[1:]
+            # if bayesian_result.best_parameters:
+            #     best_individual = Individual(
+            #         parameters=bayesian_result.best_parameters)
+            #     self.genetic_optimizer.population = [
+            #         best_individual] + self.genetic_optimizer.population[1:]
 
             try:
                 genetic_result = self.genetic_optimizer.optimize(
@@ -341,8 +291,9 @@ class HybridOptimizationEngine:
 
                 remaining_budget = self.evaluation_budget - self.total_evaluations
                 if remaining_budget > 0:
-                    genetic_pop_size = min(remaining_budget // 8, 25)
-                    genetic_generations = remaining_budget // genetic_pop_size if genetic_pop_size > 0 else 1
+                    # Ensure minimum population size of 4 for PyGAD
+                    genetic_pop_size = max(4, min(remaining_budget // 8, 25))
+                    genetic_generations = max(1, remaining_budget // genetic_pop_size)
 
                     self.genetic_config.update({
                         'population_size': genetic_pop_size,
@@ -374,10 +325,10 @@ class HybridOptimizationEngine:
         start_time = time.time()
 
         print(
-            f"Starting Hybrid Optimization with strategy: {self.strategy.value}")
-        print(f"Parameter bounds: {self.parameter_bounds}")
-        print(f"Evaluation budget: {self.evaluation_budget}")
-        print(f"Time budget: {self.time_budget}s")
+            f"🚀 Starting Hybrid Optimization with strategy: {self.strategy.value}")
+        print(f"⚙️ Parameter bounds: {self.parameter_bounds}")
+        print(f"💰 Evaluation budget: {self.evaluation_budget}")
+        print(f"⏳ Time budget: {self.time_budget}s")
 
         # Create budget-limited objective function
         limited_objective = self._create_budget_limited_objective(
@@ -490,7 +441,7 @@ class HybridOptimizationEngine:
                 "convergence": result.genetic_results.convergence_reached
             }
 
-        with open(filename, 'w') as f:
+        with open(filename, 'w', encoding='utf-8') as f:
             json.dump(export_data, f, indent=2)
 
         print(f"Results exported to {filename}")

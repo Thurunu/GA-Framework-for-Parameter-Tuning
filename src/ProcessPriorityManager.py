@@ -7,10 +7,23 @@ Handles process nice values and priority adjustments for kernel 6.6+ systems
 import subprocess
 import logging
 import os
-import psutil
+import time
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    print("Warning: PyYAML not installed. Install with: pip install pyyaml")
+    yaml = None
+
+try:
+    import psutil
+except ImportError:
+    print("Warning: psutil not installed. Install with: pip install psutil")
+    psutil = None
 
 class PriorityClass(Enum):
     """Process priority classes for different workload types"""
@@ -35,7 +48,13 @@ class ProcessPriorityManager:
     Manages process priorities using nice/renice for EEVDF scheduler optimization
     """
     
-    def __init__(self, log_level=logging.INFO):
+    def __init__(self, log_level=logging.INFO, config_file: str = None):
+        # Check for required dependencies
+        if psutil is None:
+            raise ImportError("psutil is required. Install with: pip install psutil")
+        if yaml is None:
+            raise ImportError("PyYAML is required. Install with: pip install pyyaml")
+        
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         
@@ -47,43 +66,142 @@ class ProcessPriorityManager:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
         
-        # Process classification patterns
-        self.workload_patterns = {
-            'database': {
-                'patterns': ['mysqld', 'postgres', 'redis', 'mongodb', 'sqlite'],
-                'priority_class': PriorityClass.HIGH,
-                'description': 'Database servers'
-            },
-            'web_server': {
-                'patterns': ['nginx', 'apache', 'httpd', 'gunicorn', 'uwsgi'],
-                'priority_class': PriorityClass.HIGH,
-                'description': 'Web servers'
-            },
-            'compute_intensive': {
-                'patterns': ['python.*numpy', 'python.*scipy', 'matlab', 'R '],
-                'priority_class': PriorityClass.NORMAL,
-                'description': 'Compute-intensive applications'
-            },
-            'background_tasks': {
-                'patterns': ['cron', 'rsync', 'backup', 'updatedb', 'logrotate'],
-                'priority_class': PriorityClass.BACKGROUND,
-                'description': 'Background maintenance tasks'
-            },
-            'interactive': {
-                'patterns': ['firefox', 'chrome', 'vim', 'emacs', 'code'],
-                'priority_class': PriorityClass.HIGH,
-                'description': 'Interactive applications'
-            },
-            'system_critical': {
-                'patterns': ['systemd', 'kernel', 'init', 'ssh'],
-                'priority_class': PriorityClass.CRITICAL,
-                'description': 'Critical system processes'
-            }
-        }
+        # Load priority configuration from YAML
+        self.workload_patterns = {}
+        self.config = self._load_configuration(config_file)
         
         # Track managed processes
         self.managed_processes: Dict[int, ProcessInfo] = {}
         self.original_priorities: Dict[int, int] = {}
+        
+        # Process stability tracking for filtering short-lived processes
+        # Format: {pid: {'first_seen': timestamp, 'count': observation_count}}
+        self.process_observations: Dict[int, Dict] = {}
+        self.last_cleanup_time = time.time()
+    
+    def _load_configuration(self, config_file: str = None) -> dict:
+        """Load process priority configuration from YAML file"""
+        if config_file is None:
+            # Default to config/process_priorities.yml relative to project root
+            current_dir = Path(__file__).parent
+            config_file = current_dir.parent / "config" / "process_priorities.yml"
+        
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            # Parse priority mappings
+            for workload_name, workload_data in config['priority_mappings'].items():
+                priority_class_name = workload_data['priority_class']
+                priority_class = PriorityClass[priority_class_name]
+                
+                self.workload_patterns[workload_name] = {
+                    'patterns': workload_data['patterns'],
+                    'priority_class': priority_class,
+                    'description': workload_data['description']
+                }
+            
+            print(f"🔃 Loaded priority mappings for {len(self.workload_patterns)} workload types")
+            return config
+            
+        except FileNotFoundError:
+            self.logger.warning("Configuration file %s not found. Using default patterns.", config_file)
+            return self._get_default_configuration()
+        except yaml.YAMLError as e:
+            self.logger.error("Error parsing YAML configuration: %s", e)
+            print("Falling back to default configuration.")
+            return self._get_default_configuration()
+        except (OSError, IOError) as e:
+            self.logger.error("Error loading process priority configuration: %s", e)
+            print("Falling back to default configuration.")
+            return self._get_default_configuration()
+    
+    def _get_default_configuration(self) -> dict:
+        """Get default priority configuration as fallback"""
+        self.workload_patterns = {
+            'database': {
+                'patterns': ['mysqld', 'postgres', 'redis'],
+                'priority_class': PriorityClass.HIGH,
+                'description': 'Database servers'
+            },
+            'web_server': {
+                'patterns': ['nginx', 'apache', 'httpd'],
+                'priority_class': PriorityClass.HIGH,
+                'description': 'Web servers'
+            }
+        }
+        return {
+            'workload_focus_boost': {'enabled': True, 'boost_amount': 5, 'max_priority': -20},
+            'filter_rules': {'exclude_pids': [0, 1, 2], 'exclude_prefixes': ['[', 'kthreadd']},
+            'safety': {'dry_run': False}
+        }
+    
+    def _cleanup_old_observations(self):
+        """Remove old process observations outside the tracking window"""
+        current_time = time.time()
+        
+        # Only cleanup periodically to avoid overhead
+        if current_time - self.last_cleanup_time < 60:  # Cleanup every 60 seconds
+            return
+        
+        stability_config = self.config.get('filter_rules', {}).get('stability_tracking', {})
+        observation_window = stability_config.get('observation_window', 30)
+        
+        # Remove observations older than the window
+        expired_pids = [
+            pid for pid, data in self.process_observations.items()
+            if current_time - data['first_seen'] > observation_window
+        ]
+        
+        for pid in expired_pids:
+            del self.process_observations[pid]
+        
+        self.last_cleanup_time = current_time
+    
+    def _should_adjust_process(self, pid: int, process_age: float) -> bool:
+        """
+        Determine if a process should have its priority adjusted based on:
+        1. Minimum process age (filter out very short-lived processes)
+        2. Stability tracking (require multiple observations before adjustment)
+        
+        Args:
+            pid: Process ID
+            process_age: Process uptime in seconds
+            
+        Returns:
+            True if process is eligible for priority adjustment
+        """
+        filter_rules = self.config.get('filter_rules', {})
+        
+        # Check minimum process age
+        min_age = filter_rules.get('min_process_age', 5.0)
+        if process_age < min_age:
+            return False
+        
+        # Check stability tracking
+        stability_config = filter_rules.get('stability_tracking', {})
+        if not stability_config.get('enabled', True):
+            return True  # Stability tracking disabled, process is eligible
+        
+        required_observations = stability_config.get('required_observations', 2)
+        current_time = time.time()
+        
+        # Track this observation
+        if pid not in self.process_observations:
+            self.process_observations[pid] = {
+                'first_seen': current_time,
+                'count': 1
+            }
+            return False  # First time seeing this process
+        else:
+            # Increment observation count
+            self.process_observations[pid]['count'] += 1
+            
+            # Check if we've seen it enough times
+            if self.process_observations[pid]['count'] >= required_observations:
+                return True
+            else:
+                return False
         
     def classify_process(self, process_name: str, cmdline: str) -> Tuple[str, PriorityClass]:
         """
@@ -123,7 +241,7 @@ class ProcessPriorityManager:
         try:
             # Validate nice value range
             if not -20 <= nice_value <= 19:
-                self.logger.error(f"Invalid nice value {nice_value}. Must be between -20 and 19")
+                self.logger.error("Invalid nice value %s. Must be between -20 and 19", nice_value)
                 return False
             
             # Store original priority if not already stored
@@ -134,23 +252,23 @@ class ProcessPriorityManager:
             
             # Set new priority
             if os.name == 'nt':  # Windows simulation
-                self.logger.info(f"Simulated: renice {nice_value} {pid}")
+                self.logger.info("Simulated: renice %s %s", nice_value, pid)
                 return True
             else:
-                result = subprocess.run(
+                subprocess.run(
                     ['renice', str(nice_value), str(pid)],
                     capture_output=True,
                     text=True,
                     check=True
                 )
-                self.logger.info(f"Set process {pid} priority to {nice_value}")
+                self.logger.info("Set process %s priority to %s", pid, nice_value)
                 return True
                 
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to set priority for process {pid}: {e}")
+            self.logger.error("Failed to set priority for process %s: %s", pid, e)
             return False
-        except Exception as e:
-            self.logger.error(f"Unexpected error setting priority for {pid}: {e}")
+        except (OSError, ValueError) as e:
+            self.logger.error("Unexpected error setting priority for %s: %s", pid, e)
             return False
     
     def scan_and_classify_processes(self) -> Dict[str, List[ProcessInfo]]:
@@ -162,6 +280,14 @@ class ProcessPriorityManager:
         """
         classified_processes: Dict[str, List[ProcessInfo]] = {}
         
+        # Cleanup old observations periodically
+        self._cleanup_old_observations()
+        
+        # Get filter rules from configuration
+        filter_rules = self.config.get('filter_rules', {})
+        exclude_pids = filter_rules.get('exclude_pids', [0, 1, 2])
+        exclude_prefixes = filter_rules.get('exclude_prefixes', ['[', 'kthreadd', 'ksoftirqd'])
+        
         try:
             for process in psutil.process_iter(['pid', 'name', 'cmdline', 'cpu_percent', 'memory_percent']):
                 try:
@@ -170,8 +296,24 @@ class ProcessPriorityManager:
                     name = process_info['name'] or 'unknown'
                     cmdline = process_info['cmdline'] or []
                     
-                    # Skip kernel threads and system processes we shouldn't touch
-                    if pid <= 2 or name.startswith('[') or name in ['kthreadd', 'ksoftirqd']:
+                    # Apply filter rules - exclude by PID
+                    if pid in exclude_pids:
+                        continue
+                    
+                    # Apply filter rules - exclude by name prefix
+                    if any(name.startswith(prefix) for prefix in exclude_prefixes):
+                        continue
+                    
+                    # Check process age and stability
+                    try:
+                        proc = psutil.Process(pid)
+                        process_age = time.time() - proc.create_time()
+                        
+                        # Skip short-lived or unstable processes
+                        if not self._should_adjust_process(pid, process_age):
+                            continue
+                            
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
                         continue
                     
                     # Get current priority
@@ -201,8 +343,8 @@ class ProcessPriorityManager:
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     continue
                     
-        except Exception as e:
-            self.logger.error(f"Error scanning processes: {e}")
+        except (psutil.Error, OSError) as e:
+            self.logger.error("Error scanning processes: %s", e)
         
         return classified_processes
     
@@ -220,8 +362,16 @@ class ProcessPriorityManager:
             'processes_adjusted': 0,
             'high_priority_set': 0,
             'low_priority_set': 0,
-            'errors': 0
+            'errors': 0,
+            'short_lived_filtered': len([p for p in self.process_observations.values() if p['count'] < self.config.get('filter_rules', {}).get('stability_tracking', {}).get('required_observations', 2)]),
+            'processes_tracked': len(self.process_observations)
         }
+        
+        # Get configuration values
+        boost_config = self.config.get('workload_focus_boost', {})
+        boost_enabled = boost_config.get('enabled', True)
+        boost_amount = boost_config.get('boost_amount', 5)
+        max_priority = boost_config.get('max_priority', -20)
         
         classified_processes = self.scan_and_classify_processes()
         
@@ -231,10 +381,13 @@ class ProcessPriorityManager:
                     # Determine target priority
                     target_nice = proc_info.target_nice
                     
-                    # Apply workload focus boost
-                    if workload_focus and workload_type == workload_focus:
-                        target_nice = max(target_nice - 5, -20)  # Boost priority
-                        self.logger.info(f"Boosting {workload_type} process {proc_info.name} (PID {proc_info.pid})")
+                    # Apply workload focus boost if enabled
+                    if boost_enabled and workload_focus and workload_type == workload_focus:
+                        target_nice = max(target_nice - boost_amount, max_priority)  # Boost priority
+                        self.logger.info(
+                            "Boosting %s process %s (PID %s)",
+                            workload_type, proc_info.name, proc_info.pid
+                        )
                     
                     # Only adjust if different from current
                     if proc_info.current_nice != target_nice:
@@ -250,11 +403,11 @@ class ProcessPriorityManager:
                         else:
                             stats['errors'] += 1
                             
-                except Exception as e:
-                    self.logger.error(f"Error optimizing process {proc_info.pid}: {e}")
+                except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError) as e:
+                    self.logger.error("Error optimizing process %s: %s", proc_info.pid, e)
                     stats['errors'] += 1
         
-        self.logger.info(f"Priority optimization complete: {stats}")
+        self.logger.info("Priority optimization complete: %s", stats)
         return stats
     
     def restore_original_priorities(self) -> int:
@@ -270,9 +423,12 @@ class ProcessPriorityManager:
             try:
                 if self.set_process_priority(pid, original_nice):
                     restored_count += 1
-                    self.logger.info(f"Restored process {pid} to original priority {original_nice}")
-            except Exception as e:
-                self.logger.error(f"Failed to restore priority for process {pid}: {e}")
+                    self.logger.info(
+                        "Restored process %s to original priority %s",
+                        pid, original_nice
+                    )
+            except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError) as e:
+                self.logger.error("Failed to restore priority for process %s: %s", pid, e)
         
         # Clear tracking
         self.managed_processes.clear()
@@ -332,7 +488,7 @@ def main():
             if len(processes) > 3:
                 print(f"  ... and {len(processes) - 3} more")
     
-    print(f"\nPriority Statistics:")
+    print("\nPriority Statistics:")
     stats = manager.get_priority_statistics()
     for key, value in stats.items():
         print(f"  {key}: {value}")

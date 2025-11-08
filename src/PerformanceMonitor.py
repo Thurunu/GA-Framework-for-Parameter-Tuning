@@ -131,9 +131,18 @@ class PerformanceMonitor:
         
         return [m for m in self.metrics_history if m.timestamp >= cutoff_time]
     
-    def get_average_metrics(self, duration_seconds: int = 60) -> Dict:
-        """Calculate average metrics over specified duration"""
-        history = self.get_metrics_history(duration_seconds)
+    def get_average_metrics(self, duration_seconds: int = 60, window_size: int = None) -> Dict:
+        """Calculate average metrics over a time window or last N samples
+        Args:
+            duration_seconds: Look-back duration to include in averaging
+            window_size: If provided, ignore duration_seconds and average over last N samples
+        Returns: dict containing averages and rates with both compatibility keys
+        """
+        # Choose history slice
+        if window_size is not None and window_size > 0:
+            history = list(self.metrics_history)[-window_size:]
+        else:
+            history = self.get_metrics_history(duration_seconds)
         
         if not history:
             return {}
@@ -173,9 +182,15 @@ class PerformanceMonitor:
                 )
         
         # Calculate averages
+        cpu_avg = metrics_sum['cpu_percent'] / count
+        mem_avg = metrics_sum['memory_percent'] / count
         averages = {
-            'cpu_percent_avg': metrics_sum['cpu_percent'] / count,
-            'memory_percent_avg': metrics_sum['memory_percent'] / count,
+            # Backward/compat names expected by some tests
+            'cpu_percent': cpu_avg,
+            'memory_percent': mem_avg,
+            # Existing explicit avg keys
+            'cpu_percent_avg': cpu_avg,
+            'memory_percent_avg': mem_avg,
             'disk_read_rate_mb_s': metrics_sum['disk_io_read_rate'] / (1024 * 1024),
             'disk_write_rate_mb_s': metrics_sum['disk_io_write_rate'] / (1024 * 1024),
             'network_sent_rate_mb_s': metrics_sum['network_sent_rate'] / (1024 * 1024),
@@ -187,6 +202,32 @@ class PerformanceMonitor:
         }
         
         return averages
+
+    def get_summary_statistics(self) -> Dict[str, Dict[str, float]]:
+        """Compute summary statistics (mean, std, min, max) for key metrics over history"""
+        data = list(self.metrics_history)
+        if not data:
+            return {
+                'cpu_percent': {'mean': 0.0, 'std': 0.0, 'min': 0.0, 'max': 0.0},
+                'memory_percent': {'mean': 0.0, 'std': 0.0, 'min': 0.0, 'max': 0.0},
+            }
+        import numpy as np
+        cpu = np.array([m.cpu_percent for m in data], dtype=float)
+        mem = np.array([m.memory_percent for m in data], dtype=float)
+        return {
+            'cpu_percent': {
+                'mean': float(np.mean(cpu)),
+                'std': float(np.std(cpu)),
+                'min': float(np.min(cpu)),
+                'max': float(np.max(cpu)),
+            },
+            'memory_percent': {
+                'mean': float(np.mean(mem)),
+                'std': float(np.std(mem)),
+                'min': float(np.min(mem)),
+                'max': float(np.max(mem)),
+            },
+        }
     
     def detect_performance_anomalies(self, threshold_multiplier: float = 2.0) -> Dict:
         """Detect performance anomalies based on historical data"""

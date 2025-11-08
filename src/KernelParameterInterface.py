@@ -8,6 +8,7 @@ import os
 import subprocess
 import json
 import time
+import yaml
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -29,13 +30,66 @@ class KernelParameter:
 class KernelParameterInterface:
     """Interface for managing Linux kernel parameters"""
     
-    def __init__(self, backup_dir: str = "/tmp/kernel_optimizer_backup"):
+    def __init__(self, backup_dir: str = "/tmp/kernel_optimizer_backup", config_file: str = None, dry_run: bool = False):
         self.backup_dir = Path(backup_dir)
         self.backup_dir.mkdir(exist_ok=True)
         
-        # Define key parameters for optimization based on your paper
-        self.optimization_parameters = {
-            # Memory Management Parameters
+        # Setup logging first (before loading parameters)
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        
+        # Dry-run mode: simulate writes, still perform real reads when possible
+        self.dry_run = dry_run
+        
+        # Load kernel parameters from YAML configuration
+        self.optimization_parameters = self._load_parameters(config_file)
+        
+        # Load current values
+        self._load_current_values()
+        
+        # Check parameter availability and warn about unavailable ones
+        self._check_system_compatibility()
+    
+    def _load_parameters(self, config_file: str = None) -> Dict[str, KernelParameter]:
+        """Load kernel parameter definitions from YAML configuration file"""
+        if config_file is None:
+            # Default to config/kernel_parameters.yml relative to project root
+            current_dir = Path(__file__).parent
+            config_file = current_dir.parent / "config" / "kernel_parameters.yml"
+        
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            parameters = {}
+            for param_name, param_data in config['parameters'].items():
+                parameters[param_name] = KernelParameter(
+                    name=param_name,
+                    current_value=None,  # Will be loaded later
+                    default_value=param_data['default_value'],
+                    min_value=param_data.get('min_value'),
+                    max_value=param_data.get('max_value'),
+                    description=param_data.get('description', ''),
+                    subsystem=param_data.get('subsystem', ''),
+                    writable=param_data.get('writable', True),
+                    requires_reboot=param_data.get('requires_reboot', False)
+                )
+            
+            print(f"Loaded {len(parameters)} kernel parameters from configuration")
+            return parameters
+            
+        except FileNotFoundError:
+            print(f"Warning: Configuration file {config_file} not found. Using default parameters.")
+            return self._get_default_parameters()
+        except Exception as e:
+            print(f"Error loading kernel parameters: {e}")
+            print("Falling back to default parameters.")
+            return self._get_default_parameters()
+    
+    def _get_default_parameters(self) -> Dict[str, KernelParameter]:
+        """Get default kernel parameters as fallback"""
+        # Minimal fallback set of critical parameters
+        return {
             'vm.swappiness': KernelParameter(
                 name='vm.swappiness',
                 current_value=None,
@@ -53,147 +107,29 @@ class KernelParameterInterface:
                 max_value=90,
                 description='Percentage of memory that can be dirty before writeback',
                 subsystem='memory'
-            ),
-            'vm.dirty_background_ratio': KernelParameter(
-                name='vm.dirty_background_ratio',
-                current_value=None,
-                default_value=10,
-                min_value=1,
-                max_value=50,
-                description='Percentage for background writeback',
-                subsystem='memory'
-            ),
-            'vm.vfs_cache_pressure': KernelParameter(
-                name='vm.vfs_cache_pressure',
-                current_value=None,
-                default_value=100,
-                min_value=1,
-                max_value=1000,
-                description='Controls VFS cache reclaim pressure',
-                subsystem='memory'
-            ),
-            
-            # CPU Scheduling Parameters (EEVDF-compatible for kernel 6.6+)
-            'kernel.sched_cfs_bandwidth_slice_us': KernelParameter(
-                name='kernel.sched_cfs_bandwidth_slice_us',
-                current_value=None,
-                default_value=5000,      # 5ms
-                min_value=1000,          # 1ms
-                max_value=20000,         # 20ms
-                description='CFS bandwidth time slice in microseconds (EEVDF scheduler)',
-                subsystem='cpu'
-            ),
-            'kernel.sched_latency_ns': KernelParameter(
-                name='kernel.sched_latency_ns',
-                current_value=None,
-                default_value=6000000,   # 6ms
-                min_value=1000000,       # 1ms
-                max_value=50000000,      # 50ms
-                description='Target preemption latency for CPU-bound tasks',
-                subsystem='cpu'
-            ),
-            'kernel.sched_rt_period_us': KernelParameter(
-                name='kernel.sched_rt_period_us',
-                current_value=None,
-                default_value=1000000,   # 1 second
-                min_value=1,
-                max_value=10000000,      # 10 seconds
-                description='Period over which RT task bandwidth is measured',
-                subsystem='cpu'
-            ),
-            'kernel.sched_rt_runtime_us': KernelParameter(
-                name='kernel.sched_rt_runtime_us',
-                current_value=None,
-                default_value=950000,    # 950ms (95% of period)
-                min_value=0,
-                max_value=1000000,       # 1 second
-                description='Portion of period that RT tasks can use',
-                subsystem='cpu'
-            ),
-            
-            # Network Parameters
-            'net.core.rmem_max': KernelParameter(
-                name='net.core.rmem_max',
-                current_value=None,
-                default_value=212992,
-                min_value=8192,
-                max_value=134217728,     # 128MB
-                description='Maximum receive buffer size',
-                subsystem='network'
-            ),
-            'net.core.wmem_max': KernelParameter(
-                name='net.core.wmem_max',
-                current_value=None,
-                default_value=212992,
-                min_value=8192,
-                max_value=134217728,     # 128MB
-                description='Maximum send buffer size',
-                subsystem='network'
-            ),
-            'net.core.netdev_max_backlog': KernelParameter(
-                name='net.core.netdev_max_backlog',
-                current_value=None,
-                default_value=1000,
-                min_value=100,
-                max_value=10000,
-                description='Maximum packets in network device queue',
-                subsystem='network'
-            ),
-            'net.ipv4.tcp_rmem': KernelParameter(
-                name='net.ipv4.tcp_rmem',
-                current_value=None,
-                default_value='4096 87380 6291456',
-                min_value=None,
-                max_value=None,
-                description='TCP receive buffer sizes (min default max)',
-                subsystem='network'
-            ),
-            'net.ipv4.tcp_wmem': KernelParameter(
-                name='net.ipv4.tcp_wmem',
-                current_value=None,
-                default_value='4096 16384 4194304',
-                min_value=None,
-                max_value=None,
-                description='TCP send buffer sizes (min default max)',
-                subsystem='network'
-            ),
-            'net.ipv4.tcp_congestion_control': KernelParameter(
-                name='net.ipv4.tcp_congestion_control',
-                current_value=None,
-                default_value='cubic',
-                min_value=None,
-                max_value=None,
-                description='TCP congestion control algorithm',
-                subsystem='network'
-            ),
-            
-            # File System Parameters
-            'fs.file-max': KernelParameter(
-                name='fs.file-max',
-                current_value=None,
-                default_value=2097152,
-                min_value=1024,
-                max_value=10485760,
-                description='Maximum number of file handles',
-                subsystem='filesystem'
-            ),
-            'fs.nr_open': KernelParameter(
-                name='fs.nr_open',
-                current_value=None,
-                default_value=1048576,
-                min_value=1024,
-                max_value=10485760,
-                description='Maximum file descriptors per process',
-                subsystem='filesystem'
             )
         }
+    
+    def _check_system_compatibility(self):
+        """Check which parameters are available on this system"""
+        if os.name != 'posix':
+            self.logger.info("Running on Windows - parameter checks skipped")
+            return
         
-        # Setup logging first (before loading current values)
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger(__name__)
+        unavailable_params = []
+        for param_name in list(self.optimization_parameters.keys()):
+            if not self.check_parameter_availability(param_name):
+                unavailable_params.append(param_name)
         
-        # Load current values
-        self._load_current_values()
+        if unavailable_params:
+            self.logger.warning(
+                "The following parameters are not available on this system and will be skipped: %s",
+                ", ".join(unavailable_params)
+            )
+            self.logger.info(
+                "This may be due to: kernel version, missing kernel modules, or system configuration. "
+                "Optimization will continue with available parameters only."
+            )
     
     def _load_current_values(self):
         """Load current kernel parameter values"""
@@ -258,29 +194,103 @@ class KernelParameterInterface:
     def _write_parameter(self, param_name: str, value: Any) -> bool:
         """Write a kernel parameter value"""
         try:
+            # In dry-run mode, simulate success for known/available params after validation
+            if getattr(self, 'dry_run', False):
+                # Only simulate for available parameters
+                if os.name != 'posix' or self.check_parameter_availability(param_name):
+                    self.logger.info("[dry-run] Would set %s = %s", param_name, value)
+                    return True
+                self.logger.warning("[dry-run] Parameter %s not available, skipping", param_name)
+                return False
+            
             # Check if running on Linux/Unix system
             if os.name == 'posix':
-                # Convert value to string
-                str_value = str(int(value))
-                print("------------------")
-                # Use sysctl to write parameter
+                # Convert value to string while preserving multi-value tokens
+                if isinstance(value, (int, float)):
+                    str_value = str(int(value)) if isinstance(value, int) or float(value).is_integer() else str(float(value))
+                else:
+                    # Accept strings like "4 4 1 7" or "4096 87380 6291456"
+                    str_value = str(value).strip()
+                
+                # Try sysctl method first
                 result = subprocess.run(
                     ['sysctl', '-w', f'{param_name}={str_value}'],
                     capture_output=True,
                     text=True,
-                    check=True
+                    check=False  # Don't raise exception, check manually
                 )
                 
-                self.logger.info("Set %s = %s", param_name, str_value)
-                return True
+                if result.returncode == 0:
+                    self.logger.info("Set %s = %s", param_name, str_value)
+                    return True
+                else:
+                    # Log the actual error from sysctl
+                    error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                    self.logger.warning("sysctl failed for %s: %s", param_name, error_msg)
+                    
+                    # Try alternative method: write directly to /proc/sys
+                    proc_path = f"/proc/sys/{param_name.replace('.', '/')}"
+                    try:
+                        with open(proc_path, 'w', encoding='utf-8') as f:
+                            f.write(str_value)
+                        self.logger.info("Set %s = %s (via /proc/sys)", param_name, str_value)
+                        return True
+                    except (FileNotFoundError, PermissionError, OSError) as proc_error:
+                        self.logger.error(
+                            "Failed to set %s = %s: Parameter may not exist or is read-only. "
+                            "sysctl error: %s, /proc/sys error: %s",
+                            param_name, str_value, error_msg, str(proc_error)
+                        )
+                        return False
             else:
                 # Windows - simulate successful write for testing
                 print(f"Simulated setting {param_name} = {value} (Windows)")
                 return True
                 
-        except subprocess.CalledProcessError as e:
-            self.logger.error("Failed to set %s = %s: %s", param_name, value, e)
+        except Exception as e:
+            self.logger.error("Unexpected error setting %s = %s: %s", param_name, value, e)
             return False
+
+    # Public helper APIs expected by integration tests
+    def set_parameter(self, param_name: str, value: Any) -> bool:
+        """Set a single parameter value with validation and dry-run support"""
+        # If we know the parameter, validate range and track current_value
+        if param_name in self.optimization_parameters:
+            param = self.optimization_parameters[param_name]
+            if not self.check_parameter_availability(param_name) and os.name == 'posix':
+                self.logger.warning("Parameter %s not available on this system", param_name)
+                return False
+            if not self._validate_parameter_value(param, value):
+                self.logger.warning("Rejected %s=%s due to bounds [%s, %s]", param_name, value, param.min_value, param.max_value)
+                return False
+            success = self._write_parameter(param_name, value)
+            if success:
+                # Update in-memory current value on success (or dry-run)
+                param.current_value = value
+            return success
+        else:
+            # Unknown parameter: attempt write only if not in dry-run and on posix; otherwise skip
+            if getattr(self, 'dry_run', False):
+                self.logger.info("[dry-run] Unknown parameter %s, skipping", param_name)
+                return False
+            return self._write_parameter(param_name, value)
+
+    def get_parameter(self, param_name: str) -> Optional[Any]:
+        """Read a parameter value; prefer live read, fall back to cached/default"""
+        try:
+            value = self._read_parameter(param_name)
+            return value
+        except Exception:
+            # Fallback to known parameter cache
+            param = self.optimization_parameters.get(param_name)
+            return param.current_value if param else None
+
+    def validate_parameter(self, param_name: str, value: Any) -> bool:
+        """Validate a value against known parameter bounds; True if unknown"""
+        param = self.optimization_parameters.get(param_name)
+        if not param:
+            return True
+        return self._validate_parameter_value(param, value)
     
     def backup_current_parameters(self) -> str:
         """Create backup of current kernel parameters"""
@@ -323,6 +333,38 @@ class KernelParameterInterface:
             self.logger.error("Failed to restore from backup: %s", e)
             return False
     
+    def check_parameter_availability(self, param_name: str) -> bool:
+        """Check if a kernel parameter exists and is writable on the system"""
+        if os.name != 'posix':
+            return True  # On Windows, simulate availability for testing
+        
+        # Try to read the parameter
+        try:
+            result = subprocess.run(
+                ['sysctl', '-n', param_name],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode == 0:
+                return True
+            
+            # Try /proc/sys path
+            proc_path = f"/proc/sys/{param_name.replace('.', '/')}"
+            return os.path.exists(proc_path) and os.access(proc_path, os.R_OK)
+        except Exception:
+            return False
+    
+    def get_available_parameters(self) -> Dict[str, KernelParameter]:
+        """Get only the parameters that are available on this system"""
+        available = {}
+        for param_name, param in self.optimization_parameters.items():
+            if self.check_parameter_availability(param_name):
+                available[param_name] = param
+            else:
+                self.logger.info("Parameter %s is not available on this system, excluding from optimization", param_name)
+        return available
+    
     def apply_parameter_set(self, parameters: Dict[str, Any]) -> Dict[str, bool]:
         """Apply a set of kernel parameters"""
         results = {}
@@ -332,6 +374,12 @@ class KernelParameterInterface:
         
         for param_name, value in parameters.items():
             if param_name in self.optimization_parameters:
+                # Check if parameter is available on this system
+                if not self.check_parameter_availability(param_name):
+                    results[param_name] = False
+                    self.logger.warning("Parameter %s is not available on this system, skipping", param_name)
+                    continue
+                
                 # Validate value is within bounds
                 param = self.optimization_parameters[param_name]
                 if self._validate_parameter_value(param, value):
@@ -340,7 +388,10 @@ class KernelParameterInterface:
                         param.current_value = value
                 else:
                     results[param_name] = False
-                    self.logger.warning("Invalid value %s for parameter %s", value, param_name)
+                    self.logger.warning(
+                        "Invalid value %s for parameter %s (valid range: %s to %s)",
+                        value, param_name, param.min_value, param.max_value
+                    )
             else:
                 results[param_name] = False
                 self.logger.warning("Unknown parameter: %s", param_name)

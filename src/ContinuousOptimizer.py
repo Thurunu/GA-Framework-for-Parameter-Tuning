@@ -10,18 +10,31 @@ import json
 import sys
 import signal
 import os
+import yaml
 from typing import Dict, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import queue
+from pathlib import Path
 
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ProcessWorkloadDetector import ProcessWorkloadDetector
-from HybridOptimizationEngine import HybridOptimizationEngine, OptimizationStrategy
+from HybridOptimizationEngine import HybridOptimizationEngine
+from WorkloadCharacterizer import OptimizationStrategy
 from PerformanceMonitor import PerformanceMonitor
 from KernelParameterInterface import KernelParameterInterface
 from ProcessPriorityManager import ProcessPriorityManager
+
+# Import centralized management agent reporter
+try:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+    from agent_reporter import AgentReporter
+    CENTRALIZED_MANAGEMENT_ENABLED = True
+except ImportError:
+    print("Warning: AgentReporter not available. Running in standalone mode.")
+    CENTRALIZED_MANAGEMENT_ENABLED = False
+    AgentReporter = None
 
 @dataclass
 class OptimizationProfile:
@@ -36,112 +49,75 @@ class OptimizationProfile:
 class ContinuousOptimizer:
     """Continuous optimization system that adapts to workload changes"""
     
-    # Predefined optimization profiles for different workload types
-    OPTIMIZATION_PROFILES = {
-        'database': OptimizationProfile(
-            workload_type='database',
-            parameter_bounds={
-                'vm.swappiness': (1, 30),
-                'vm.dirty_ratio': (5, 20),
-                'vm.dirty_background_ratio': (2, 10),
-                'kernel.sched_cfs_bandwidth_slice_us': (2000, 10000),  # EEVDF parameter
-                'kernel.sched_latency_ns': (1000000, 12000000),        # EEVDF parameter
-                'net.core.rmem_max': (65536, 16777216),
-                'net.core.wmem_max': (65536, 16777216)
-            },
-            strategy=OptimizationStrategy.BAYESIAN_ONLY,
-            evaluation_budget=15,  # Reduced for continuous operation
-            time_budget=180.0,     # 3 minutes
-            performance_weights={
-                'cpu_efficiency': 0.2,
-                'memory_efficiency': 0.3,
-                'io_throughput': 0.4,
-                'network_throughput': 0.1
-            }
-        ),
+    @staticmethod
+    def _load_optimization_profiles(config_file: str = None) -> Dict[str, OptimizationProfile]:
+        """Load optimization profiles from YAML configuration file"""
+        if config_file is None:
+            # Default to config/optimization_profiles.yml relative to project root
+            current_dir = Path(__file__).parent
+            config_file = current_dir.parent / "config" / "optimization_profiles.yml"
         
-        'web_server': OptimizationProfile(
-            workload_type='web_server',
-            parameter_bounds={
-                'vm.swappiness': (10, 60),
-                'net.core.rmem_max': (131072, 33554432),
-                'net.core.wmem_max': (131072, 33554432),
-                'net.core.netdev_max_backlog': (1000, 10000),
-                'kernel.sched_cfs_bandwidth_slice_us': (3000, 8000),   # EEVDF parameter
-                'kernel.sched_latency_ns': (2000000, 8000000)          # EEVDF parameter
-            },
-            strategy=OptimizationStrategy.ADAPTIVE,
-            evaluation_budget=12,
-            time_budget=150.0,
-            performance_weights={
-                'cpu_efficiency': 0.3,
-                'memory_efficiency': 0.2,
-                'io_throughput': 0.2,
-                'network_throughput': 0.3
-            }
-        ),
-        
-        'hpc_compute': OptimizationProfile(
-            workload_type='hpc_compute',
-            parameter_bounds={
-                'vm.swappiness': (1, 10),
-                'vm.dirty_ratio': (15, 40),
-                'kernel.sched_cfs_bandwidth_slice_us': (1000, 5000),   # EEVDF parameter
-                'kernel.sched_latency_ns': (1000000, 6000000),         # EEVDF parameter
-                'kernel.sched_rt_runtime_us': (800000, 980000)         # RT scheduler tuning
-            },
-            strategy=OptimizationStrategy.GENETIC_ONLY,
-            evaluation_budget=18,
-            time_budget=240.0,
-            performance_weights={
-                'cpu_efficiency': 0.5,
-                'memory_efficiency': 0.3,
-                'io_throughput': 0.1,
-                'network_throughput': 0.1
-            }
-        ),
-        
-        'io_intensive': OptimizationProfile(
-            workload_type='io_intensive',
-            parameter_bounds={
-                'vm.dirty_ratio': (5, 30), 
-                'vm.dirty_background_ratio': (2, 15),
-                'vm.vfs_cache_pressure': (50, 200)
-            },
-            strategy=OptimizationStrategy.BAYESIAN_ONLY,
-            evaluation_budget=10,
-            time_budget=120.0,
-            performance_weights={
-                'cpu_efficiency': 0.2,
-                'memory_efficiency': 0.2,
-                'io_throughput': 0.6,
-                'network_throughput': 0.0
-            }
-        ),
-        
-        'general': OptimizationProfile(
-            workload_type='general',
-            parameter_bounds={
-                'vm.swappiness': (10, 80),
-                'vm.dirty_ratio': (10, 30),
-                'kernel.sched_cfs_bandwidth_slice_us': (5000000, 12000000)
-            },
-            strategy=OptimizationStrategy.ADAPTIVE,
-            evaluation_budget=10,
-            time_budget=120.0,
-            performance_weights={
-                'cpu_efficiency': 0.25,
-                'memory_efficiency': 0.25,
-                'io_throughput': 0.25,
-                'network_throughput': 0.25
-            }
-        )
-    }
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            profiles = {}
+            for profile_name, profile_data in config['profiles'].items():
+                # Convert parameter bounds from lists to tuples
+                parameter_bounds = {
+                    param: tuple(bounds) 
+                    for param, bounds in profile_data['parameter_bounds'].items()
+                }
+                
+                # Convert strategy string to enum
+                strategy = OptimizationStrategy[profile_data['strategy']]
+                
+                profiles[profile_name] = OptimizationProfile(
+                    workload_type=profile_data['workload_type'],
+                    parameter_bounds=parameter_bounds,
+                    strategy=strategy,
+                    evaluation_budget=profile_data['evaluation_budget'],
+                    time_budget=profile_data['time_budget'],
+                    performance_weights=profile_data['performance_weights']
+                )
+            
+            return profiles
+            
+        except FileNotFoundError:
+            print(f"Warning: Configuration file {config_file} not found. Using default profiles.")
+            return ContinuousOptimizer._get_default_profiles()
+        except Exception as e:
+            print(f"Error loading optimization profiles: {e}")
+            print("Falling back to default profiles.")
+            return ContinuousOptimizer._get_default_profiles()
+    
+    @staticmethod
+    def _get_default_profiles() -> Dict[str, OptimizationProfile]:
+        """Get default optimization profiles as fallback"""
+        return {
+            'general': OptimizationProfile(
+                workload_type='general',
+                parameter_bounds={
+                    'vm.swappiness': (10, 80),
+                    'vm.dirty_ratio': (10, 30),
+                },
+                strategy=OptimizationStrategy.ADAPTIVE,
+                evaluation_budget=10,
+                time_budget=120.0,
+                performance_weights={
+                    'cpu_efficiency': 0.25,
+                    'memory_efficiency': 0.25,
+                    'io_throughput': 0.25,
+                    'network_throughput': 0.25
+                }
+            )
+        }
     
     def __init__(self, 
                  adaptation_delay: float = 30.0,
                  stability_period: float = 180.0,
-                 log_file: str = "/var/log/continuous_optimizer.log"):
+                 log_file: str = "/var/log/continuous_optimizer.log",
+                 config_file: str = None):
         """
         Initialize continuous optimizer
         
@@ -149,16 +125,43 @@ class ContinuousOptimizer:
             adaptation_delay: Wait time before optimizing after workload change
             stability_period: Minimum time between optimizations
             log_file: Log file path
+            config_file: Path to optimization profiles YAML file (optional)
         """
         self.adaptation_delay = adaptation_delay
         self.stability_period = stability_period
         self.log_file = log_file
+        
+        # Load optimization profiles from YAML
+        self.OPTIMIZATION_PROFILES = self._load_optimization_profiles(config_file)
+        print(f"Loaded {len(self.OPTIMIZATION_PROFILES)} optimization profiles")
         
         # Initialize components
         self.process_detector = ProcessWorkloadDetector()
         self.performance_monitor = PerformanceMonitor()
         self.kernel_interface = KernelParameterInterface()
         self.priority_manager = ProcessPriorityManager()  # New EEVDF support
+        
+        # Initialize centralized management reporter (optional)
+        self.reporter = None
+        if CENTRALIZED_MANAGEMENT_ENABLED:
+            try:
+                master_url = os.getenv('MASTER_URL')
+                # api_key = os.getenv('API_KEY')
+                if master_url:
+                    self.reporter = AgentReporter(
+                        agent_id=os.getenv('AGENT_ID', os.uname().nodename),
+                        master_url=master_url,
+                        # api_key=api_key
+                    )
+                    # Register with master on startup
+                    print("🌍 Connecting to centralized management...")
+                    self.reporter.register()
+                    print(f"✓ Connected to centralized management at {master_url}")
+                else:
+                    print("Info: MASTER_URL not set. Running in standalone mode.")
+            except Exception as e:
+                print(f"Warning: Could not connect to centralized management: {e}")
+                self.reporter = None
         
         # Optimization tracking
         self.current_profile: Optional[OptimizationProfile] = None
@@ -238,10 +241,51 @@ class ContinuousOptimizer:
         self.optimization_queue.put(workload_type)
         self._log(f"Scheduled optimization for workload: {workload_type}")
     
+    # this is for connecting to centralized management and handling commands
     def _optimization_worker(self):
         """Worker thread for running optimizations"""
+        last_heartbeat = 0
+        heartbeat_interval = 30.0  # Send heartbeat every 30 seconds
+        
         while self.running:
             try:
+                # Send heartbeat to centralized management
+                current_time = time.time()
+                if self.reporter and (current_time - last_heartbeat) >= heartbeat_interval:
+                    try:
+                        # Get current metrics and convert to dictionary
+                        metrics_obj = self.performance_monitor.get_current_metrics()
+                        
+                        if metrics_obj:
+                            # Convert PerformanceMetrics dataclass to dict
+                            metrics = asdict(metrics_obj)
+                        else:
+                            # Fallback: use average metrics if no current metrics
+                            metrics = self.performance_monitor.get_average_metrics(30) or {}
+                        
+                        # Get current workload from detector (if available)
+                        current_workload = None
+                        if hasattr(self.process_detector, 'current_workload_type'):
+                            current_workload = self.process_detector.current_workload_type
+                        
+                        self.reporter.send_heartbeat(
+                            metrics=metrics,
+                            workload_type=current_workload,
+                            optimization_score=None  # Could add optimization score tracking
+                        )
+                        last_heartbeat = current_time
+                    except Exception as e:
+                        self._log(f"Failed to send heartbeat: {e}")
+                
+                # Poll for commands from centralized management
+                if self.reporter:
+                    try:
+                        commands = self.reporter.poll_commands()
+                        for cmd in commands:
+                            self._execute_remote_command(cmd)
+                    except Exception as e:
+                        self._log(f"Failed to poll commands: {e}")
+                
                 # Wait for optimization request
                 workload_type = self.optimization_queue.get(timeout=1)
                 
@@ -269,8 +313,8 @@ class ContinuousOptimizer:
             profile = self.OPTIMIZATION_PROFILES[workload_type]
             self.current_profile = profile
             
-            self._log(f"Starting optimization for {workload_type} workload")
-            self._log(f"Strategy: {profile.strategy.value}, Budget: {profile.evaluation_budget}")
+            self._log(f"🚀 Starting optimization for {workload_type} workload")
+            self._log(f"🎯 Strategy: {profile.strategy.value}, 💰 Budget: {profile.evaluation_budget}")
             
             # Create backup
             backup_file = self.kernel_interface.backup_current_parameters()
@@ -335,10 +379,26 @@ class ContinuousOptimizer:
                 # Apply parameters
                 results = self.kernel_interface.apply_parameter_set(params)
                 
-                # Check if parameters were applied successfully
-                failed_params = [name for name, success in results.items() if not success]
+                # Separate failed params into unavailable vs actual failures
+                failed_params = []
+                unavailable_params = []
+                
+                for name, success in results.items():
+                    if not success:
+                        # Check if parameter is unavailable on this system
+                        if not self.kernel_interface.check_parameter_availability(name):
+                            unavailable_params.append(name)
+                        else:
+                            failed_params.append(name)
+                
+                # If there are actual failures (not just unavailable params), return penalty
                 if failed_params:
-                    return -1000.0  # Penalty for failed application
+                    self._log(f"Parameter application failed: {failed_params}")
+                    return -1000.0  # Penalty for actual failures
+                
+                # If only unavailable params, continue with available ones
+                if unavailable_params:
+                    self._log(f"Skipped unavailable parameters: {unavailable_params} (continuing with available params)")
                 
                 # Allow system to stabilize
                 time.sleep(2)
@@ -393,6 +453,77 @@ class ContinuousOptimizer:
             score += weights['network_throughput'] * net_score
         
         return score
+# this is for connecting to centralized management and handling commands
+    def _execute_remote_command(self, command: Dict):
+        """Execute command received from centralized management"""
+        cmd_id = command.get('id')
+        cmd_type = command.get('command_type')
+        params = command.get('parameters', {})
+        
+        self._log(f"Executing remote command: {cmd_type} (ID: {cmd_id})")
+        
+        try:
+            if cmd_type == 'update_parameters':
+                # Apply kernel parameters
+                self.kernel_interface.apply_parameter_set(params)
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id, 
+                        status='success',
+                        result={"message": "Parameters updated successfully"}
+                    )
+            
+            elif cmd_type == 'trigger_optimization':
+                # Manually trigger optimization
+                workload_type = params.get('workload_type', 'general')
+                self._schedule_optimization(workload_type)
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id,
+                        status='success',
+                        result={"message": f"Optimization scheduled for {workload_type}"}
+                    )
+            
+            elif cmd_type == 'get_metrics':
+                # Return current metrics
+                metrics = self.performance_monitor.get_current_metrics()
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id,
+                        status='success',
+                        result=metrics
+                    )
+            
+            elif cmd_type == 'restart_monitoring':
+                # Restart monitoring components
+                self.process_detector.stop_monitoring()
+                self.performance_monitor.stop_monitoring()
+                time.sleep(2)
+                self.process_detector.start_monitoring()
+                self.performance_monitor.start_monitoring()
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id,
+                        status='success',
+                        result={"message": "Monitoring restarted"}
+                    )
+            
+            else:
+                if self.reporter:
+                    self.reporter.report_command_result(
+                        cmd_id,
+                        status='failed',
+                        error=f"Unknown command type: {cmd_type}"
+                    )
+        
+        except Exception as e:
+            self._log(f"Command execution failed: {e}")
+            if self.reporter:
+                self.reporter.report_command_result(
+                    cmd_id,
+                    status='error',
+                    error=str(e)
+                )
     
     def _log(self, message: str):
         """Log message to file and console"""

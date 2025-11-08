@@ -5,13 +5,14 @@ Test script specifically for KernelParameterInterface
 
 import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_kernel_interface():
     """Test KernelParameterInterface with error handling"""
     print("Testing Kernel Parameter Interface...")
     
     try:
-        from KernelParameterInterface import KernelParameterInterface
+        from src.KernelParameterInterface import KernelParameterInterface
         
         # Initialize interface with error handling
         print("  ✓ Initializing KernelParameterInterface...")
