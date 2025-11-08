@@ -1,15 +1,14 @@
-name: Deploy to AWS EC2 Instances
+name: Deploy Optimization Tool to AWS EC2 Instances
 
 on:
   push:
     branches:
       - main
-      - development
   workflow_dispatch:
 
 env:
   EC2_USER: ubuntu
-  APP_DIR: /home/ubuntu/ga-framework
+  TOOL_DIR: /home/ubuntu/Optimization-Tool
 
 jobs:
   deploy:

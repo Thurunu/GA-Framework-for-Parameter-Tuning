@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class AgentReporter:
     """Handles communication between agent and master node"""
     
-    def __init__(self, master_url: str, agent_id: str = None, api_key: str = None):
+    def __init__(self, master_url: str, agent_id: str = None, ):
         """
         Initialize agent reporter
         
@@ -39,12 +39,12 @@ class AgentReporter:
         """
         self.master_url = master_url.rstrip('/')
         self.agent_id = agent_id or self._generate_agent_id()
-        self.api_key = api_key
+        # self.api_key = api_key
         self.session = requests.Session()
         
         # Set up authentication header if API key provided
-        if self.api_key:
-            self.session.headers.update({'X-API-Key': self.api_key})
+        # if self.api_key:
+        #     self.session.headers.update({'X-API-Key': self.api_key})
         
         self.registered = False
         self.last_heartbeat = None
