@@ -59,11 +59,11 @@ def main():
     print()
     
     # Wait for user confirmation
-    try:
-        input("Press Enter to start, or Ctrl+C to cancel...")
-    except KeyboardInterrupt:
-        print("\nCancelled by user.")
-        sys.exit(0)
+    # try:
+    #     input("Press Enter to start, or Ctrl+C to cancel...")
+    # except KeyboardInterrupt:
+    #     print("\nCancelled by user.")
+    #     sys.exit(0)
     
     print()
     print("Starting continuous optimization...")
