@@ -39,12 +39,12 @@ class AgentReporter:
         """
         self.master_url = master_url.rstrip('/')
         self.agent_id = agent_id or self._generate_agent_id()
-        # self.api_key = api_key
+        self.api_key = api_key
         self.session = requests.Session()
         
         # Set up authentication header if API key provided
-        # if self.api_key:
-        #     self.session.headers.update({'X-API-Key': self.api_key})
+        if self.api_key:
+            self.session.headers.update({'X-API-Key': self.api_key})
         
         self.registered = False
         self.last_heartbeat = None

@@ -83,6 +83,7 @@ def main():
         print('✅ Shutdown complete.')
         sys.exit(0)
     
+    print("Setting up signal handlers for graceful shutdown...")
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     

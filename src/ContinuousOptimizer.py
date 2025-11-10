@@ -146,12 +146,12 @@ class ContinuousOptimizer:
         if CENTRALIZED_MANAGEMENT_ENABLED:
             try:
                 master_url = os.getenv('MASTER_URL')
-                # api_key = os.getenv('API_KEY')
+                api_key = os.getenv('API_KEY')
                 if master_url:
                     self.reporter = AgentReporter(
                         agent_id=os.getenv('AGENT_ID', os.uname().nodename),
                         master_url=master_url,
-                        # api_key=api_key
+                        api_key=api_key
                     )
                     # Register with master on startup
                     print("🌍 Connecting to centralized management...")
