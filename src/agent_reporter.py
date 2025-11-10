@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class AgentReporter:
     """Handles communication between agent and master node"""
     
-    def __init__(self, master_url: str, agent_id: str = None, ):
+    def __init__(self, master_url: str, agent_id: str = None, api_key: str = None):
         """
         Initialize agent reporter
         
