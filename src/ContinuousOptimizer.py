@@ -15,6 +15,9 @@ from typing import Dict, Optional
 from dataclasses import dataclass
 import queue
 from pathlib import Path
+import socket
+import getpass
+
 
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,6 +28,7 @@ from WorkloadCharacterizer import OptimizationStrategy
 from PerformanceMonitor import PerformanceMonitor
 from KernelParameterInterface import KernelParameterInterface
 from ProcessPriorityManager import ProcessPriorityManager
+from agent_reporter import AgentReporter
 
 @dataclass
 class OptimizationProfile:
@@ -140,12 +144,43 @@ class ContinuousOptimizer:
         # Threading
         self.running = False
         self.optimization_thread = None
+
+        # setting up agent reporter environment
+        try:
+            self.master_url = os.getenv("MASTER_URL")
+            self.api_key = os.getenv("API_KEY")
+            self.username = getpass.getuser()  # safer than os.getlogin()
+            self.hostname = socket.gethostname()
+        except Exception as e:
+            print(f"❌ Failed to get system information: {e}")
+            self.master_url = os.getenv("MASTER_URL")
+            self.api_key = os.getenv("API_KEY")
+            self.username = (
+                os.getenv("USER") or os.getenv("LOGNAME") or os.getenv("USERNAME") or "unknown"
+            )
+            self.hostname = socket.gethostname()
+        finally:
+            self.reporter = None
+
         
         # Setup callbacks
         self.process_detector.add_workload_change_callback(self._on_workload_change)
     
     def start_continuous_optimization(self):
         """Start the continuous optimization system"""
+        print("🌍 Connecting to centralized management...")
+        try:
+            if self.master_url and self.api_key:
+                self.reporter = AgentReporter(
+                agent_id= f"{self.username}@{self.hostname}",
+                master_url=self.master_url,
+                api_key=self.api_key
+                )
+                self.reporter.register()
+                print(f"✅ Connected to {self.master_url} as {self.username}@{self.hostname}")
+        except Exception as e:
+            print(f"❌ Failed to connect to centralized management: {e}")
+            self.reporter = None
         print("Starting Continuous Kernel Optimization System...")
         
         self.running = True

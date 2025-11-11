@@ -1,0 +1,68 @@
+{
+  "hybrid_optimization": {
+    "strategy": "bayesian_only",
+    "best_score": 47.77780693433422,
+    "best_parameters": {
+      "vm.swappiness": 69.68515435992794,
+      "vm.dirty_ratio": 12.403184728383863,
+      "kernel.sched_cfs_bandwidth_slice_us": 3343.7731079601294
+    },
+    "total_evaluations": 5,
+    "optimization_time": 60.56463146209717,
+    "convergence_reached": false,
+    "switch_points": []
+  },
+  "bayesian_results": {
+    "best_score": 47.77780693433422,
+    "best_parameters": {
+      "vm.swappiness": 69.68515435992794,
+      "vm.dirty_ratio": 12.403184728383863,
+      "kernel.sched_cfs_bandwidth_slice_us": 3343.7731079601294
+    },
+    "iterations": 5,
+    "convergence": false
+  },
+  "genetic_results": null,
+  "evaluation_history": [
+    {
+      "parameters": {
+        "vm.swappiness": 65.75800908021631,
+        "vm.dirty_ratio": 13.668695797323277,
+        "kernel.sched_cfs_bandwidth_slice_us": 3339.0730008183086
+      },
+      "score": 47.736648807586725
+    },
+    {
+      "parameters": {
+        "vm.swappiness": 10.0,
+        "vm.dirty_ratio": 30.0,
+        "kernel.sched_cfs_bandwidth_slice_us": 1000.0
+      },
+      "score": 47.72924362667867
+    },
+    {
+      "parameters": {
+        "vm.swappiness": 69.68515435992794,
+        "vm.dirty_ratio": 12.403184728383863,
+        "kernel.sched_cfs_bandwidth_slice_us": 3343.7731079601294
+      },
+      "score": 47.77780693433422
+    },
+    {
+      "parameters": {
+        "vm.swappiness": 69.31700750097389,
+        "vm.dirty_ratio": 12.547142217947648,
+        "kernel.sched_cfs_bandwidth_slice_us": 3545.274161891729
+      },
+      "score": 47.71041496862649
+    },
+    {
+      "parameters": {
+        "vm.swappiness": 70.48931871381521,
+        "vm.dirty_ratio": 12.742438148894419,
+        "kernel.sched_cfs_bandwidth_slice_us": 3374.034131771888
+      },
+      "score": 47.70676796020745
+    }
+  ]
+}

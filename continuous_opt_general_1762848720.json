@@ -1,0 +1,14 @@
+{
+  "hybrid_optimization": {
+    "strategy": "adaptive",
+    "best_score": -Infinity,
+    "best_parameters": {},
+    "total_evaluations": 0,
+    "optimization_time": 5.340576171875e-05,
+    "convergence_reached": false,
+    "switch_points": []
+  },
+  "bayesian_results": null,
+  "genetic_results": null,
+  "evaluation_history": []
+}
