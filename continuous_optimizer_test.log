@@ -1,0 +1,111 @@
+[2025-11-10 15:11:45] Scheduled optimization for workload: general
+[2025-11-10 15:11:45] 🚀 Starting optimization for general workload
+[2025-11-10 15:11:45] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-10 15:11:45] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762767705.json
+[2025-11-10 15:11:45] Optimization completed in 0.07s
+[2025-11-10 15:11:45] Best score: -inf
+[2025-11-10 15:11:45] Total evaluations: 0
+[2025-11-10 15:14:15] 🚀 Starting optimization for general workload
+[2025-11-10 15:14:15] Scheduled optimization for workload: general
+[2025-11-10 15:14:15] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-10 15:14:15] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762767855.json
+[2025-11-10 15:14:15] Optimization completed in 0.05s
+[2025-11-10 15:14:15] Best score: -inf
+[2025-11-10 15:14:15] Total evaluations: 0
+[2025-11-10 15:19:45] Scheduled optimization for workload: general
+[2025-11-10 15:19:46] 🚀 Starting optimization for general workload
+[2025-11-10 15:19:46] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-10 15:19:46] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762768186.json
+[2025-11-10 15:19:46] Optimization completed in 0.07s
+[2025-11-10 15:19:46] Best score: -inf
+[2025-11-10 15:19:46] Total evaluations: 0
+[2025-11-10 15:59:18] Scheduled optimization for workload: general
+[2025-11-10 15:59:18] 🚀 Starting optimization for general workload
+[2025-11-10 15:59:18] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-10 15:59:18] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762770558.json
+[2025-11-10 15:59:18] Optimization completed in 0.09s
+[2025-11-10 15:59:18] Best score: -inf
+[2025-11-10 15:59:18] Total evaluations: 0
+[2025-11-11 01:05:27] Scheduled optimization for workload: general
+[2025-11-11 01:05:27] 🚀 Starting optimization for general workload
+[2025-11-11 01:05:27] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 01:05:27] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762803327.json
+[2025-11-11 01:05:27] Optimization completed in 0.06s
+[2025-11-11 01:05:27] Best score: -inf
+[2025-11-11 01:05:27] Total evaluations: 0
+[2025-11-11 09:36:05] Scheduled optimization for workload: general
+[2025-11-11 09:36:05] 🚀 Starting optimization for general workload
+[2025-11-11 09:36:05] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 09:36:05] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762833965.json
+[2025-11-11 09:36:05] Optimization completed in 0.06s
+[2025-11-11 09:36:05] Best score: -inf
+[2025-11-11 09:36:05] Total evaluations: 0
+[2025-11-11 09:45:12] Scheduled optimization for workload: general
+[2025-11-11 09:45:12] 🚀 Starting optimization for general workload
+[2025-11-11 09:45:12] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 09:45:12] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762834512.json
+[2025-11-11 09:45:12] Optimization completed in 0.06s
+[2025-11-11 09:45:12] Best score: -inf
+[2025-11-11 09:45:12] Total evaluations: 0
+[2025-11-11 09:48:57] Executing remote command: optimize (ID: 4)
+[2025-11-11 10:07:17] Scheduled optimization for workload: general
+[2025-11-11 10:07:17] 🚀 Starting optimization for general workload
+[2025-11-11 10:07:17] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 10:07:17] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762835837.json
+[2025-11-11 10:07:17] Optimization completed in 0.08s
+[2025-11-11 10:07:17] Best score: -inf
+[2025-11-11 10:07:17] Total evaluations: 0
+[2025-11-11 12:37:35] Workload change detected: general -> web_server
+[2025-11-11 12:37:49] Scheduled optimization for workload: web_server
+[2025-11-11 12:37:49] 🚀 Starting optimization for web_server workload
+[2025-11-11 12:37:49] 🎯 Strategy: adaptive, 💰 Budget: 12
+[2025-11-11 12:37:49] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762844869.json
+[2025-11-11 12:37:49] Optimization completed in 0.56s
+[2025-11-11 12:37:50] Best score: -inf
+[2025-11-11 12:37:50] Total evaluations: 0
+[2025-11-11 12:41:04] Scheduled optimization for workload: general
+[2025-11-11 12:41:04] 🚀 Starting optimization for general workload
+[2025-11-11 12:41:04] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 12:41:04] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762845064.json
+[2025-11-11 12:41:04] Optimization completed in 0.10s
+[2025-11-11 12:41:05] Best score: -inf
+[2025-11-11 12:41:05] Total evaluations: 0
+[2025-11-11 12:56:02] Workload change detected: general -> web_server
+[2025-11-11 12:56:15] 🚀 Starting optimization for web_server workload
+[2025-11-11 12:56:15] Scheduled optimization for workload: web_server
+[2025-11-11 12:56:15] 🎯 Strategy: adaptive, 💰 Budget: 12
+[2025-11-11 12:56:15] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762845975.json
+[2025-11-11 12:56:15] Optimization completed in 0.33s
+[2025-11-11 12:56:15] Best score: -inf
+[2025-11-11 12:56:16] Total evaluations: 0
+[2025-11-11 13:07:40] Workload change detected: web_server -> general
+[2025-11-11 13:07:55] Scheduled optimization for workload: general
+[2025-11-11 13:07:55] 🚀 Starting optimization for general workload
+[2025-11-11 13:07:56] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 13:07:56] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762846676.json
+[2025-11-11 13:07:54] Optimization completed in -0.92s
+[2025-11-11 13:07:55] Best score: -inf
+[2025-11-11 13:07:55] Total evaluations: 0
+[2025-11-11 13:09:22] Workload change detected: general -> general
+[2025-11-11 13:09:36] 🚀 Starting optimization for general workload
+[2025-11-11 13:09:36] Scheduled optimization for workload: general
+[2025-11-11 13:09:36] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 13:09:36] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762846776.json
+[2025-11-11 13:09:36] Optimization completed in 0.26s
+[2025-11-11 13:09:36] Best score: -inf
+[2025-11-11 13:09:36] Total evaluations: 0
+[2025-11-11 13:11:06] Workload change detected: general -> general
+[2025-11-11 13:11:19] 🚀 Starting optimization for general workload
+[2025-11-11 13:11:19] Scheduled optimization for workload: general
+[2025-11-11 13:11:19] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 13:11:19] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762846879.json
+[2025-11-11 13:11:19] Optimization completed in 0.14s
+[2025-11-11 13:11:19] Best score: -inf
+[2025-11-11 13:11:19] Total evaluations: 0
+[2025-11-11 13:39:08] Scheduled optimization for workload: general
+[2025-11-11 13:39:08] 🚀 Starting optimization for general workload
+[2025-11-11 13:39:08] 🎯 Strategy: adaptive, 💰 Budget: 10
+[2025-11-11 13:39:08] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1762848548.json
+[2025-11-11 13:39:08] Optimization completed in 0.05s
+[2025-11-11 13:39:08] Best score: -inf
+[2025-11-11 13:39:08] Total evaluations: 0

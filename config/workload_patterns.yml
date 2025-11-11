@@ -19,7 +19,7 @@ patterns:
   web_server:
     description: "Web servers and application servers"
     process_patterns:
-      # - 'nginx.*'
+      - 'nginx.*'
       - 'apache.*'
       # - 'httpd.*'
       # - 'lighttpd.*'

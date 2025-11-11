@@ -29,7 +29,7 @@ priority_mappings:
     priority_class: HIGH  # -10
     patterns:
     - "apache2"
-  #     - "nginx"
+    - "nginx"
   #     - "httpd"
   #     - "gunicorn"
   #     - "uwsgi"

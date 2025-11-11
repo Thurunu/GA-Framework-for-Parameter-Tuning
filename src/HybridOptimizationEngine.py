@@ -257,7 +257,7 @@ class HybridOptimizationEngine:
         print("Running Adaptive Optimization...")
 
         # Start with Bayesian for initial exploration
-        initial_budget = min(20, self.evaluation_budget // 4)
+        initial_budget = max(5, min(20, self.evaluation_budget // 2.5))
         self.bayesian_config['max_iterations'] = initial_budget
         self.bayesian_optimizer = self._initialize_bayesian_optimizer()
 
