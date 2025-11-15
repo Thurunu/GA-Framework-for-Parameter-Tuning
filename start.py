@@ -8,31 +8,38 @@ import sys
 import time
 import signal
 from pathlib import Path
+import os
+import threading
+
+# Add src directory to Python path so imports work correctly
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 def main():
     print("="*60)
     print("   Continuous Kernel Optimization Framework")
     print("="*60)
-    print()
+
     
     # Check if running as root
     try:
-        import os
         if hasattr(os, 'geteuid') and os.geteuid() != 0:
-            print("⚠️  Warning: Not running as root.")
+            print("\n⚠️  Warning: Not running as root.")
             print("   Kernel parameter changes will be simulated only.")
-            print("   For actual optimization, run with: sudo python3 quick_start_continuous.py")
-            print()
+
     except:
-        print("ℹ️  Running on Windows - using simulation mode")
-        print()
+        print("ℹ️  Running on Windows - using simulation mode\n")
+
     
     # Import continuous optimizer
     try:
-        from src.ContinuousOptimizer import ContinuousOptimizer
+        from ContinuousOptimizer import ContinuousOptimizer
+        from agentServer import start_server
     except ImportError as e:
         print(f"❌ Import Error: {e}")
         print("Make sure all required files are in the current directory:")
+        print(sys.path)
+        print(os.listdir())
+
         required_files = [
             "ContinuousOptimizer.py",
             "ProcessWorkloadDetector.py", 
@@ -40,7 +47,8 @@ def main():
             "PerformanceMonitor.py",
             "KernelParameterInterface.py",
             "BayesianOptimzation.py",
-            "GeneticAlgorithm.py"
+            "GeneticAlgorithm.py",
+            "agentServer.py"
         ]
         for file_name in required_files:
             exists = "✅" if Path(f"src/{file_name}").exists() else "❌"
@@ -48,15 +56,13 @@ def main():
         sys.exit(1)
     
     print("🚀 Starting Continuous Optimization Test...")
-    print()
-    print("This will:")
+
+    print("\nThis will:")
+    print("  • Start Agent Metrics Server on port 9300")
     print("  • Monitor running processes continuously")
     print("  • Detect workload type changes automatically") 
     print("  • Optimize kernel parameters for detected workloads")
     print("  • Log all optimization activities")
-    print()
-    print("Press Ctrl+C to stop at any time")
-    print()
     
     # Wait for user confirmation
     try:
@@ -65,7 +71,21 @@ def main():
         print("\nCancelled by user.")
         sys.exit(0)
     
-    print()
+    print("\nStarting agent server in background...")
+    
+    # Start agent server in a background thread
+    agent_thread = threading.Thread(
+        target=start_server,
+        kwargs={'HOST': '0.0.0.0', 'PORT': 9300},
+        daemon=True,
+        name="AgentServer"
+    )
+    agent_thread.start()
+    
+    # Give the server a moment to start
+    time.sleep(2)
+    
+    print("✅ Agent server started on http://0.0.0.0:9300\n")
     print("Starting continuous optimization...")
     
     # Initialize optimizer with shorter intervals for testing
@@ -90,12 +110,15 @@ def main():
         # Start the continuous optimizer
         optimizer.start_continuous_optimization()
         
-        print()
-        print("📊 Continuous optimization is now running!")
+        
+        print("\n▶️ Continuous optimization is now running!")
         print("="*50)
-        print("Status updates will appear every 30 seconds...")
-        print("View detailed logs: tail -f continuous_optimizer_test.log")
-        print()
+        print("Agent API available at: http://localhost:9300")
+        print("  • Health: http://localhost:9300/health")
+        print("  • Metrics: http://localhost:9300/metrics")
+        print("  • Status: http://localhost:9300/status")
+        print("\n🕛Status updates will appear every 30 seconds...")
+        print("View detailed logs: tail -f continuous_optimizer_test.log\n")
         
         # Status update loop
         status_counter = 0
@@ -135,8 +158,7 @@ def main():
     finally:
         print('Stopping continuous optimization...')
         optimizer.stop_continuous_optimization()
-        print('✅ Test completed.')
-        print()
+        print('✅ Test completed.\n')
         print("📄 Check the log file for detailed information:")
         print("   cat continuous_optimizer_test.log")
 

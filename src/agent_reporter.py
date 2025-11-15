@@ -37,6 +37,7 @@ class AgentReporter:
             agent_id: Unique identifier for this agent (auto-generated if None)
             api_key: API key for authentication
         """
+        self.health_status = None
         self.master_url = master_url.rstrip('/')
         self.agent_id = agent_id or self._generate_agent_id()
         self.api_key = api_key
@@ -56,7 +57,7 @@ class AgentReporter:
         hostname = socket.gethostname()
         return f"{hostname}-{int(time.time())}"
     
-    def _get_system_info(self) -> Dict:
+    def get_system_info(self) -> Dict:
         """Collect system information"""
         return {
             "hostname": socket.gethostname(),
@@ -92,7 +93,7 @@ class AgentReporter:
             True if registration successful, False otherwise
         """
         try:
-            system_info = self._get_system_info()
+            system_info = self.get_system_info()
             
             payload = {
                 "agent_id": self.agent_id,
@@ -131,21 +132,10 @@ class AgentReporter:
             logger.error(f"❌ Registration error: {e}")
             return False
     
-    def send_heartbeat(self, metrics: Dict, workload_type: str = None, 
+    def set_heartbeat(self, metrics: Dict, workload_type: str = None, 
                       optimization_score: float = None) -> Dict:
-        """
-        Send heartbeat with current metrics to master node
         
-        Args:
-            metrics: Current system metrics (CPU, memory, etc.)
-            workload_type: Current workload type being handled
-            optimization_score: Current optimization score
-            
-        Returns:
-            Response from master (may contain commands to execute)
-        """
-        try:
-            payload = {
+        self.health_status = {
                 "agent_id": self.agent_id,
                 "timestamp": datetime.now().isoformat(),
                 "status": "healthy",
@@ -154,22 +144,6 @@ class AgentReporter:
                 "optimization_score": optimization_score
             }
             
-            response = self.session.post(
-                f"{self.master_url}/api/agents/{self.agent_id}/heartbeat",
-                json=payload,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                self.last_heartbeat = time.time()
-                return response.json()
-            else:
-                logger.warning(f"⚠️ Heartbeat failed: {response.status_code}")
-                return {"status": "error", "has_commands": False}
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Heartbeat error: {e}")
-            return {"status": "error", "has_commands": False}
     
     def poll_commands(self) -> List[Dict]:
         """
@@ -402,17 +376,3 @@ if __name__ == "__main__":
     print(f"✅ Agent ID: {reporter.agent_id}")
     print(f"✅ Master URL: {reporter.master_url}")
     
-    # Test metrics collection
-    test_metrics = {
-        "cpu_percent": psutil.cpu_percent(interval=1),
-        "memory_percent": psutil.virtual_memory().percent,
-        "disk_io_read": psutil.disk_io_counters().read_bytes if psutil.disk_io_counters() else 0,
-        "disk_io_write": psutil.disk_io_counters().write_bytes if psutil.disk_io_counters() else 0,
-    }
-    
-    print(f"\n📊 Test Metrics:")
-    for key, value in test_metrics.items():
-        print(f"  {key}: {value}")
-    
-    print("\n✅ Agent Reporter ready!")
-    print("💡 Start the master node to test full communication")

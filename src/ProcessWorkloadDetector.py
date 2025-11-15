@@ -9,9 +9,11 @@ import time
 import threading
 from typing import Dict, List
 from collections import defaultdict, deque
+from agent_reporter import AgentReporter
 
 # Import WorkloadClassifier from separate module
-from WorkloadClassifier import WorkloadClassifier, ProcessInfo
+from WorkloadClassifier import WorkloadClassifier, WorkloadInfo
+from CentralDataStore import get_data_store
 
 class ProcessWorkloadDetector:
     """Monitors system processes and detects workload changes"""
@@ -33,11 +35,14 @@ class ProcessWorkloadDetector:
         # Initialize classifier with patterns from YAML
         self.classifier = WorkloadClassifier(config_file)
         
+        # Get central data store
+        self.data_store = get_data_store()
+        
         self.running = False
         self.monitor_thread = None
         
         # Process tracking
-        self.current_processes: Dict[int, ProcessInfo] = {}
+        self.current_processes: Dict[int, WorkloadInfo] = {}
         self.workload_history = deque(maxlen=100)
         self.dominant_workload = "general"
         self.workload_change_callbacks = []
@@ -108,7 +113,7 @@ class ProcessWorkloadDetector:
                 except:
                     connections = 0
                 
-                proc_info = ProcessInfo(
+                proc_info = WorkloadInfo(
                     pid=proc_data['pid'],
                     name=proc_data['name'],
                     cmdline=' '.join(proc_data['cmdline'] or []),
@@ -135,7 +140,7 @@ class ProcessWorkloadDetector:
         # Update workload statistics
         self._update_workload_stats(significant_processes)
     
-    def _update_workload_stats(self, processes: List[ProcessInfo]):
+    def _update_workload_stats(self, processes: List[WorkloadInfo]):
         """Update workload statistics and detect dominant workload"""
         current_workloads = defaultdict(lambda: {
             'count': 0, 'total_cpu': 0, 'total_memory': 0
@@ -173,7 +178,25 @@ class ProcessWorkloadDetector:
             old_workload = self.dominant_workload
             self.dominant_workload = new_dominant
             
-            print(f"Workload change detected: {old_workload} -> {new_dominant}")
+            # Update central data store
+            self.data_store.set_current_workload_type(new_dominant)
+            
+            print(f"⚠️Workload change detected: {old_workload} -> {new_dominant}")
+            
+            # Report workload change to master node via AgentReporter
+            reporter = self.data_store.get_agent_reporter()
+            if reporter and reporter.registered:
+                try:
+                    # Calculate confidence based on score difference
+                    confidence = min(max_score / 100.0, 1.0)  # Normalize score to 0-1
+                    reporter.report_workload_change(
+                        previous_workload=old_workload,
+                        current_workload=new_dominant,
+                        confidence=confidence
+                    )
+                    print(f"📡 Workload change reported to master node")
+                except Exception as e:
+                    print(f"⚠️ Failed to report workload change: {e}")
             
             # Notify callbacks
             for callback in self.workload_change_callbacks:
@@ -211,28 +234,3 @@ class ProcessWorkloadDetector:
             ]
         }
 
-# Example usage
-if __name__ == "__main__":
-    detector = ProcessWorkloadDetector()
-    
-    def on_workload_change(old_workload, new_workload, stats):
-        print(f"Workload changed from {old_workload} to {new_workload}")
-        print(f"Current stats: {stats}")
-    
-    detector.add_workload_change_callback(on_workload_change)
-    
-    try:
-        detector.start_monitoring()
-        
-        # Monitor for 30 seconds
-        time.sleep(30)
-        
-        # Print current info
-        info = detector.get_current_workload_info()
-        print(f"Current dominant workload: {info['dominant_workload']}")
-        print(f"Active processes: {info['active_processes']}")
-        
-    except KeyboardInterrupt:
-        print("Stopping...")
-    finally:
-        detector.stop_monitoring()

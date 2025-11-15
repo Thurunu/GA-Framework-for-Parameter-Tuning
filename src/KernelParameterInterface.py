@@ -10,22 +10,13 @@ import json
 import time
 import yaml
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 from pathlib import Path
 import logging
 
-@dataclass
-class KernelParameter:
-    """Data class representing a kernel parameter"""
-    name: str
-    current_value: Any
-    default_value: Any
-    min_value: Optional[Any] = None
-    max_value: Optional[Any] = None
-    description: str = ""
-    subsystem: str = ""
-    writable: bool = True
-    requires_reboot: bool = False
+# Import data classes and config loader
+from DataClasses import KernelParameter
+from LoadConfigs import LoadConfigs
 
 class KernelParameterInterface:
     """Interface for managing Linux kernel parameters"""
@@ -35,7 +26,8 @@ class KernelParameterInterface:
         self.backup_dir.mkdir(exist_ok=True)
         
         # Load kernel parameters from YAML configuration
-        self.optimization_parameters = self._load_parameters(config_file)
+        config_loader = LoadConfigs()
+        self.optimization_parameters = config_loader.load_kernel_parameters(config_file)
         
         # Setup logging first (before loading current values)
         logging.basicConfig(level=logging.INFO)
@@ -43,66 +35,6 @@ class KernelParameterInterface:
         
         # Load current values
         self._load_current_values()
-    
-    def _load_parameters(self, config_file: str = None) -> Dict[str, KernelParameter]:
-        """Load kernel parameter definitions from YAML configuration file"""
-        if config_file is None:
-            # Default to config/kernel_parameters.yml relative to project root
-            current_dir = Path(__file__).parent
-            config_file = current_dir.parent / "config" / "kernel_parameters.yml"
-        
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
-            
-            parameters = {}
-            for param_name, param_data in config['parameters'].items():
-                parameters[param_name] = KernelParameter(
-                    name=param_name,
-                    current_value=None,  # Will be loaded later
-                    default_value=param_data['default_value'],
-                    min_value=param_data.get('min_value'),
-                    max_value=param_data.get('max_value'),
-                    description=param_data.get('description', ''),
-                    subsystem=param_data.get('subsystem', ''),
-                    writable=param_data.get('writable', True),
-                    requires_reboot=param_data.get('requires_reboot', False)
-                )
-            
-            print(f"Loaded {len(parameters)} kernel parameters from configuration")
-            return parameters
-            
-        except FileNotFoundError:
-            print(f"Warning: Configuration file {config_file} not found. Using default parameters.")
-            return self._get_default_parameters()
-        except Exception as e:
-            print(f"Error loading kernel parameters: {e}")
-            print("Falling back to default parameters.")
-            return self._get_default_parameters()
-    
-    def _get_default_parameters(self) -> Dict[str, KernelParameter]:
-        """Get default kernel parameters as fallback"""
-        # Minimal fallback set of critical parameters
-        return {
-            'vm.swappiness': KernelParameter(
-                name='vm.swappiness',
-                current_value=None,
-                default_value=60,
-                min_value=0,
-                max_value=100,
-                description='Controls swap usage tendency',
-                subsystem='memory'
-            ),
-            'vm.dirty_ratio': KernelParameter(
-                name='vm.dirty_ratio',
-                current_value=None,
-                default_value=20,
-                min_value=1,
-                max_value=90,
-                description='Percentage of memory that can be dirty before writeback',
-                subsystem='memory'
-            )
-        }
     
     def _load_current_values(self):
         """Load current kernel parameter values"""

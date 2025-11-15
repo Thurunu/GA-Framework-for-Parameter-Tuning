@@ -13,22 +13,8 @@ from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional
 import subprocess
 import os
-
-@dataclass
-class PerformanceMetrics:
-    """Data class to store performance metrics"""
-    timestamp: float
-    cpu_percent: float
-    memory_percent: float
-    memory_available: int
-    disk_io_read: int
-    disk_io_write: int
-    network_bytes_sent: int
-    network_bytes_recv: int
-    load_average: tuple
-    context_switches: int
-    interrupts: int
-    tcp_connections: int
+from DataClasses import PerformanceMetrics
+from CentralDataStore import get_data_store
 
 class PerformanceMonitor:
     """Real-time system performance monitoring"""
@@ -39,6 +25,9 @@ class PerformanceMonitor:
         self.metrics_history = deque(maxlen=history_size)
         self.monitoring = False
         self.monitor_thread = None
+        
+        # Get central data store
+        self.data_store = get_data_store()
         
         # Initialize baseline counters
         self._last_disk_io = psutil.disk_io_counters()
@@ -68,6 +57,10 @@ class PerformanceMonitor:
             try:
                 metrics = self._collect_metrics()
                 self.metrics_history.append(metrics)
+                
+                # Store in central data store
+                self.data_store.set_current_metrics(metrics)
+                
                 time.sleep(self.sampling_interval)
             except Exception as e:
                 print(f"Error collecting metrics: {e}")

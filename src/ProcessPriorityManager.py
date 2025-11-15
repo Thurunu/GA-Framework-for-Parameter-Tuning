@@ -13,11 +13,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-try:
-    import yaml
-except ImportError:
-    print("Warning: PyYAML not installed. Install with: pip install pyyaml")
-    yaml = None
+from DataClasses import ProcessInfo
+from LoadConfigs import LoadConfigs
 
 try:
     import psutil
@@ -32,16 +29,6 @@ class PriorityClass(Enum):
     NORMAL = 0         # Default priority
     LOW = 10          # Low priority (batch)
     BACKGROUND = 19    # Lowest priority (background tasks)
-
-@dataclass
-class ProcessInfo:
-    """Information about a process and its priority"""
-    pid: int
-    name: str
-    current_nice: int
-    target_nice: int
-    cpu_percent: float
-    memory_percent: float
     
 class ProcessPriorityManager:
     """
@@ -52,8 +39,6 @@ class ProcessPriorityManager:
         # Check for required dependencies
         if psutil is None:
             raise ImportError("psutil is required. Install with: pip install psutil")
-        if yaml is None:
-            raise ImportError("PyYAML is required. Install with: pip install pyyaml")
         
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
@@ -68,7 +53,8 @@ class ProcessPriorityManager:
         
         # Load priority configuration from YAML
         self.workload_patterns = {}
-        self.config = self._load_configuration(config_file)
+        config_loader = LoadConfigs()
+        self.config = config_loader.load_process_priorities(config_file)
         
         # Track managed processes
         self.managed_processes: Dict[int, ProcessInfo] = {}
@@ -79,62 +65,7 @@ class ProcessPriorityManager:
         self.process_observations: Dict[int, Dict] = {}
         self.last_cleanup_time = time.time()
     
-    def _load_configuration(self, config_file: str = None) -> dict:
-        """Load process priority configuration from YAML file"""
-        if config_file is None:
-            # Default to config/process_priorities.yml relative to project root
-            current_dir = Path(__file__).parent
-            config_file = current_dir.parent / "config" / "process_priorities.yml"
-        
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
-            
-            # Parse priority mappings
-            for workload_name, workload_data in config['priority_mappings'].items():
-                priority_class_name = workload_data['priority_class']
-                priority_class = PriorityClass[priority_class_name]
-                
-                self.workload_patterns[workload_name] = {
-                    'patterns': workload_data['patterns'],
-                    'priority_class': priority_class,
-                    'description': workload_data['description']
-                }
-            
-            print(f"🔃 Loaded priority mappings for {len(self.workload_patterns)} workload types")
-            return config
-            
-        except FileNotFoundError:
-            self.logger.warning("Configuration file %s not found. Using default patterns.", config_file)
-            return self._get_default_configuration()
-        except yaml.YAMLError as e:
-            self.logger.error("Error parsing YAML configuration: %s", e)
-            print("Falling back to default configuration.")
-            return self._get_default_configuration()
-        except (OSError, IOError) as e:
-            self.logger.error("Error loading process priority configuration: %s", e)
-            print("Falling back to default configuration.")
-            return self._get_default_configuration()
-    
-    def _get_default_configuration(self) -> dict:
-        """Get default priority configuration as fallback"""
-        self.workload_patterns = {
-            'database': {
-                'patterns': ['mysqld', 'postgres', 'redis'],
-                'priority_class': PriorityClass.HIGH,
-                'description': 'Database servers'
-            },
-            'web_server': {
-                'patterns': ['nginx', 'apache', 'httpd'],
-                'priority_class': PriorityClass.HIGH,
-                'description': 'Web servers'
-            }
-        }
-        return {
-            'workload_focus_boost': {'enabled': True, 'boost_amount': 5, 'max_priority': -20},
-            'filter_rules': {'exclude_pids': [0, 1, 2], 'exclude_prefixes': ['[', 'kthreadd']},
-            'safety': {'dry_run': False}
-        }
+   
     
     def _cleanup_old_observations(self):
         """Remove old process observations outside the tracking window"""
