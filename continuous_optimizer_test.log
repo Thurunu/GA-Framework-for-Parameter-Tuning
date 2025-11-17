@@ -1,63 +1,497 @@
-[2025-11-15 00:44:12] Scheduled optimization for workload: general
-[2025-11-15 00:44:12] Starting optimization for general workload
-[2025-11-15 00:44:12] Workload change detected: general -> compilation
-[2025-11-15 00:44:12] Strategy: adaptive, Budget: 10
-[2025-11-15 00:44:12] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763147652.json
-[2025-11-15 00:44:27] Optimization already in progress, skipping compilation
-[2025-11-15 00:45:11] Applying optimized parameters: {'vm.swappiness': 62.969759652358455, 'vm.dirty_ratio': 13.01282391232251, 'kernel.sched_cfs_bandwidth_slice_us': 3306.9532133287034}
-[2025-11-15 00:45:11] All parameters applied successfully
-[2025-11-15 00:45:12] Process priority optimization: {'processes_adjusted': 51, 'high_priority_set': 51, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
-[2025-11-15 00:45:12] Optimization completed in 59.16s
-[2025-11-15 00:45:12] Best score: 46.382257
-[2025-11-15 00:45:12] Total evaluations: 5
-[2025-11-15 00:45:35] Scheduled optimization for workload: general
-[2025-11-15 00:45:35] Starting optimization for general workload
-[2025-11-15 00:45:35] Strategy: adaptive, Budget: 10
-[2025-11-15 00:45:35] Workload change detected: general -> compilation
-[2025-11-15 00:45:35] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763147735.json
-[2025-11-15 00:45:49] Optimization already in progress, skipping compilation
-[2025-11-15 00:46:34] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
-[2025-11-15 00:46:34] All parameters applied successfully
-[2025-11-15 00:46:34] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
-[2025-11-15 00:46:34] Optimization completed in 58.92s
-[2025-11-15 00:46:34] Best score: 47.531507
-[2025-11-15 00:46:34] Total evaluations: 5
-[2025-11-15 01:51:43] Scheduled optimization for workload: general
-[2025-11-15 01:51:43] Starting optimization for general workload
-[2025-11-15 01:51:43] Strategy: adaptive, Budget: 10
-[2025-11-15 01:51:43] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763151703.json
-[2025-11-15 01:51:43] Workload change detected: general -> compilation
-[2025-11-15 01:51:57] Optimization already in progress, skipping compilation
-[2025-11-15 01:52:42] Applying optimized parameters: {'vm.swappiness': 10.0, 'vm.dirty_ratio': 30.0, 'kernel.sched_cfs_bandwidth_slice_us': 1000.0}
-[2025-11-15 01:52:42] All parameters applied successfully
-[2025-11-15 01:52:42] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
-[2025-11-15 01:52:42] Optimization completed in 59.19s
-[2025-11-15 01:52:42] Best score: 56.105083
-[2025-11-15 01:52:42] Total evaluations: 5
-[2025-11-15 02:22:57] Starting optimization for general workload
-[2025-11-15 02:22:57] Scheduled optimization for workload: general
-[2025-11-15 02:22:57] Strategy: adaptive, Budget: 10
-[2025-11-15 02:22:57] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763153577.json
-[2025-11-15 02:22:57] Workload change detected: general -> compilation
-[2025-11-15 02:23:12] Optimization already in progress, skipping compilation
-[2025-11-15 02:23:57] Applying optimized parameters: {'vm.swappiness': 10.0, 'vm.dirty_ratio': 30.0, 'kernel.sched_cfs_bandwidth_slice_us': 1000.0}
-[2025-11-15 02:23:57] All parameters applied successfully
-[2025-11-15 02:23:57] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
-[2025-11-15 02:23:57] Optimization completed in 59.49s
-[2025-11-15 02:23:57] Best score: 49.782015
-[2025-11-15 02:23:57] Total evaluations: 5
-[2025-11-15 02:26:28] Workload change detected: compilation -> general
-[2025-11-15 02:26:35] Workload change detected: general -> io_intensive
-[2025-11-15 02:26:43] Scheduled optimization for workload: general
-[2025-11-15 02:26:43] Starting optimization for general workload
-[2025-11-15 02:26:44] Strategy: adaptive, Budget: 10
-[2025-11-15 02:26:50] Optimization already in progress, skipping io_intensive
-[2025-11-15 02:26:48] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763153808.json
-[2025-11-15 02:27:28] Workload change detected: io_intensive -> compilation
-[2025-11-15 02:27:43] Optimization already in progress, skipping compilation
-[2025-11-15 02:27:56] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
-[2025-11-15 02:27:56] All parameters applied successfully
-[2025-11-15 02:27:56] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
-[2025-11-15 02:27:56] Optimization completed in 72.51s
-[2025-11-15 02:27:56] Best score: 64.383453
-[2025-11-15 02:27:56] Total evaluations: 5
+[2025-11-15 19:48:19] Scheduled optimization for workload: general
+[2025-11-15 19:48:19] Starting optimization for general workload
+[2025-11-15 19:48:19] Workload change detected: general -> io_intensive
+[2025-11-15 19:48:19] Strategy: adaptive, Budget: 10
+[2025-11-15 19:48:19] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763216299.json
+[2025-11-15 19:48:34] Optimization already in progress, skipping io_intensive
+[2025-11-15 19:48:58] Workload change detected: io_intensive -> cpu_intensive
+[2025-11-15 19:49:00] Workload change detected: cpu_intensive -> io_intensive
+[2025-11-15 19:49:13] Optimization already in progress, skipping cpu_intensive
+[2025-11-15 19:49:15] Optimization already in progress, skipping io_intensive
+[2025-11-15 19:49:21] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277}
+[2025-11-15 19:49:21] All parameters applied successfully
+[2025-11-15 19:49:21] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-15 19:49:21] Optimization completed in 61.23s
+[2025-11-15 19:49:21] Best score: 46.229774
+[2025-11-15 19:49:21] Total evaluations: 5
+[2025-11-15 20:23:37] Scheduled optimization for workload: general
+[2025-11-15 20:23:37] Starting optimization for general workload
+[2025-11-15 20:23:37] Workload change detected: general -> compilation
+[2025-11-15 20:23:37] Strategy: adaptive, Budget: 10
+[2025-11-15 20:23:37] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763218417.json
+[2025-11-15 20:23:52] Optimization already in progress, skipping compilation
+[2025-11-15 20:24:38] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-15 20:24:38] All parameters applied successfully
+[2025-11-15 20:24:38] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-15 20:24:38] Optimization completed in 61.13s
+[2025-11-15 20:24:38] Best score: 46.339375
+[2025-11-15 20:24:38] Total evaluations: 5
+[2025-11-15 20:51:51] Scheduled optimization for workload: general
+[2025-11-15 20:51:51] Starting optimization for general workload
+[2025-11-15 20:51:51] Workload change detected: general -> compilation
+[2025-11-15 20:51:51] Strategy: adaptive, Budget: 10
+[2025-11-15 20:51:51] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763220111.json
+[2025-11-15 20:52:06] Optimization already in progress, skipping compilation
+[2025-11-15 20:52:53] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-15 20:52:53] All parameters applied successfully
+[2025-11-15 20:52:53] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-15 20:52:53] Optimization completed in 61.37s
+[2025-11-15 20:52:53] Best score: 46.274488
+[2025-11-15 20:52:53] Total evaluations: 5
+[2025-11-15 20:56:24] Scheduled optimization for workload: general
+[2025-11-15 20:56:24] Starting optimization for general workload
+[2025-11-15 20:56:24] Strategy: adaptive, Budget: 10
+[2025-11-15 20:56:24] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763220384.json
+[2025-11-15 20:56:24] Workload change detected: general -> compilation
+[2025-11-15 20:56:39] Optimization already in progress, skipping compilation
+[2025-11-15 20:59:52] Starting optimization for general workload
+[2025-11-15 20:59:52] Scheduled optimization for workload: general
+[2025-11-15 20:59:52] Strategy: adaptive, Budget: 10
+[2025-11-15 20:59:53] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763220593.json
+[2025-11-15 20:59:53] Workload change detected: general -> compilation
+[2025-11-15 21:00:08] Optimization already in progress, skipping compilation
+[2025-11-15 21:19:14] Scheduled optimization for workload: general
+[2025-11-15 21:19:14] Starting optimization for general workload
+[2025-11-15 21:19:14] Strategy: adaptive, Budget: 10
+[2025-11-15 21:19:14] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763221754.json
+[2025-11-15 21:19:14] Workload change detected: general -> compilation
+[2025-11-15 21:19:30] Optimization already in progress, skipping compilation
+[2025-11-15 21:20:16] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-15 21:20:16] All parameters applied successfully
+[2025-11-15 21:20:16] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-15 21:20:16] Optimization completed in 62.33s
+[2025-11-15 21:20:16] Best score: 46.264806
+[2025-11-15 21:20:16] Total evaluations: 5
+[2025-11-15 21:30:28] Scheduled optimization for workload: general
+[2025-11-15 21:30:28] Starting optimization for general workload
+[2025-11-15 21:30:28] Strategy: adaptive, Budget: 10
+[2025-11-15 21:30:28] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763222428.json
+[2025-11-15 21:30:28] Workload change detected: general -> compilation
+[2025-11-15 21:30:43] Optimization already in progress, skipping compilation
+[2025-11-15 21:31:30] Applying optimized parameters: {'vm.swappiness': 62.04800290362989, 'vm.dirty_ratio': 30.0, 'kernel.sched_cfs_bandwidth_slice_us': 1680.8976671351293}
+[2025-11-15 21:31:30] All parameters applied successfully
+[2025-11-15 21:31:30] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-15 21:31:30] Optimization completed in 61.77s
+[2025-11-15 21:31:30] Best score: 46.239168
+[2025-11-15 21:31:30] Total evaluations: 5
+[2025-11-16 02:28:04] Scheduled optimization for workload: general
+[2025-11-16 02:28:04] Starting optimization for general workload
+[2025-11-16 02:28:04] Strategy: adaptive, Budget: 10
+[2025-11-16 02:28:04] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763240284.json
+[2025-11-16 02:28:04] Workload change detected: general -> compilation
+[2025-11-16 02:28:19] Optimization already in progress, skipping compilation
+[2025-11-16 02:29:07] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-16 02:29:07] All parameters applied successfully
+[2025-11-16 02:29:08] Process priority optimization: {'processes_adjusted': 7, 'high_priority_set': 7, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 02:29:08] Optimization completed in 63.91s
+[2025-11-16 02:29:08] Best score: 46.351308
+[2025-11-16 02:29:08] Total evaluations: 5
+[2025-11-16 09:14:56] Workload change detected: compilation -> io_intensive
+[2025-11-16 09:15:00] Workload change detected: io_intensive -> compilation
+[2025-11-16 09:15:10] Workload change detected: compilation -> cpu_intensive
+[2025-11-16 09:15:11] Scheduled optimization for workload: io_intensive
+[2025-11-16 09:15:11] Starting optimization for io_intensive workload
+[2025-11-16 09:15:11] Strategy: bayesian_only, Budget: 10
+[2025-11-16 09:15:11] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763264711.json
+[2025-11-16 09:15:13] Workload change detected: cpu_intensive -> io_intensive
+[2025-11-16 09:15:15] Workload change detected: io_intensive -> compilation
+[2025-11-16 09:15:15] Optimization already in progress, skipping compilation
+[2025-11-16 09:15:25] Optimization already in progress, skipping cpu_intensive
+[2025-11-16 09:15:28] Optimization already in progress, skipping io_intensive
+[2025-11-16 09:15:30] Optimization already in progress, skipping compilation
+[2025-11-16 09:16:12] Applying optimized parameters: {'vm.dirty_ratio': 5.0, 'vm.dirty_background_ratio': 15.0, 'vm.vfs_cache_pressure': 50.0}
+[2025-11-16 09:16:12] All parameters applied successfully
+[2025-11-16 09:16:12] Process priority optimization: {'processes_adjusted': 53, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 09:16:12] Optimization completed in 61.21s
+[2025-11-16 09:16:12] Best score: 76.759489
+[2025-11-16 09:16:12] Total evaluations: 5
+[2025-11-16 13:39:13] Scheduled optimization for workload: general
+[2025-11-16 13:39:13] Starting optimization for general workload
+[2025-11-16 13:39:13] Strategy: adaptive, Budget: 10
+[2025-11-16 13:39:13] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763280553.json
+[2025-11-16 13:39:13] Workload change detected: general -> compilation
+[2025-11-16 13:39:28] Optimization already in progress, skipping compilation
+[2025-11-16 13:40:12] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-16 13:40:12] All parameters applied successfully
+[2025-11-16 13:40:12] Process priority optimization: {'processes_adjusted': 51, 'high_priority_set': 51, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 13:40:12] Optimization completed in 58.98s
+[2025-11-16 13:40:12] Best score: 47.542616
+[2025-11-16 13:40:12] Total evaluations: 5
+[2025-11-16 14:02:04] Scheduled optimization for workload: general
+[2025-11-16 14:02:04] Starting optimization for general workload
+[2025-11-16 14:02:04] Strategy: adaptive, Budget: 10
+[2025-11-16 14:02:04] Workload change detected: general -> compilation
+[2025-11-16 14:02:04] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763281924.json
+[2025-11-16 14:02:19] Optimization already in progress, skipping compilation
+[2025-11-16 14:03:03] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-16 14:03:03] All parameters applied successfully
+[2025-11-16 14:03:03] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 14:03:03] Optimization completed in 58.89s
+[2025-11-16 14:03:03] Best score: 49.113144
+[2025-11-16 14:03:03] Total evaluations: 5
+[2025-11-16 14:08:51] Scheduled optimization for workload: general
+[2025-11-16 14:08:51] Starting optimization for general workload
+[2025-11-16 14:08:51] Strategy: adaptive, Budget: 10
+[2025-11-16 14:08:51] Workload change detected: general -> compilation
+[2025-11-16 14:08:51] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763282331.json
+[2025-11-16 14:09:06] Optimization already in progress, skipping compilation
+[2025-11-16 14:09:49] Applying optimized parameters: {'vm.swappiness': 70.48931871381521, 'vm.dirty_ratio': 12.742438148894419, 'kernel.sched_cfs_bandwidth_slice_us': 3374.034131771888}
+[2025-11-16 14:09:49] All parameters applied successfully
+[2025-11-16 14:09:49] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 14:09:49] Optimization completed in 58.78s
+[2025-11-16 14:09:49] Best score: 47.030319
+[2025-11-16 14:09:49] Total evaluations: 5
+[2025-11-16 14:21:47] Starting optimization for general workload
+[2025-11-16 14:21:47] Scheduled optimization for workload: general
+[2025-11-16 14:21:47] Strategy: adaptive, Budget: 10
+[2025-11-16 14:21:47] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763283107.json
+[2025-11-16 14:21:46] Workload change detected: general -> compilation
+[2025-11-16 14:22:01] Optimization already in progress, skipping compilation
+[2025-11-16 14:22:45] Applying optimized parameters: {'vm.swappiness': 64.55444054436481, 'vm.dirty_ratio': 21.503804828754163, 'kernel.sched_cfs_bandwidth_slice_us': 1493.4809757582832}
+[2025-11-16 14:22:45] All parameters applied successfully
+[2025-11-16 14:22:45] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 14:22:45] Optimization completed in 57.96s
+[2025-11-16 14:22:45] Best score: 47.473131
+[2025-11-16 14:22:45] Total evaluations: 5
+[2025-11-16 14:52:41] Scheduled optimization for workload: general
+[2025-11-16 14:52:41] Starting optimization for general workload
+[2025-11-16 14:52:41] Strategy: adaptive, Budget: 10
+[2025-11-16 14:52:41] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763284961.json
+[2025-11-16 14:52:41] Workload change detected: general -> compilation
+[2025-11-16 14:52:56] Optimization already in progress, skipping compilation
+[2025-11-16 14:53:40] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-16 14:53:40] All parameters applied successfully
+[2025-11-16 14:53:40] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 14:53:40] Optimization completed in 58.99s
+[2025-11-16 14:53:40] Best score: 46.176101
+[2025-11-16 14:53:40] Total evaluations: 5
+[2025-11-16 15:40:10] Workload change detected: compilation -> network_intensive
+[2025-11-16 15:40:13] Workload change detected: network_intensive -> io_intensive
+[2025-11-16 15:40:24] Unknown workload type: network_intensive
+[2025-11-16 15:40:24] Scheduled optimization for workload: network_intensive
+[2025-11-16 15:40:27] Starting optimization for io_intensive workload
+[2025-11-16 15:40:27] Scheduled optimization for workload: io_intensive
+[2025-11-16 15:40:27] Strategy: bayesian_only, Budget: 10
+[2025-11-16 15:40:27] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763287827.json
+[2025-11-16 15:41:29] Applying optimized parameters: {'vm.dirty_ratio': 6.1729963034124395, 'vm.dirty_background_ratio': 14.962157143838587, 'vm.vfs_cache_pressure': 53.6806360314989}
+[2025-11-16 15:41:29] All parameters applied successfully
+[2025-11-16 15:41:34] Process priority optimization: {'processes_adjusted': 86, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 15:41:34] Optimization completed in 66.82s
+[2025-11-16 15:41:34] Best score: 28.695253
+[2025-11-16 15:41:35] Total evaluations: 5
+[2025-11-16 15:45:29] Workload change detected: io_intensive -> compilation
+[2025-11-16 15:45:44] Starting optimization for compilation workload
+[2025-11-16 15:45:44] Scheduled optimization for workload: compilation
+[2025-11-16 15:45:44] Strategy: adaptive, Budget: 12
+[2025-11-16 15:45:44] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763288144.json
+[2025-11-16 15:45:45] Applying optimized parameters: {'vm.swappiness': 32.879004540108156, 'vm.dirty_ratio': 23.668695797323277, 'vm.dirty_background_ratio': 16.695365004091542, 'kernel.sched_cfs_bandwidth_slice_us': 5581.100947678922, 'kernel.sched_latency_ns': 5566662.02282873}
+[2025-11-16 15:45:45] Failed to apply parameters: ['kernel.sched_latency_ns']
+[2025-11-16 15:45:45] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 15:45:45] Optimization completed in 0.57s
+[2025-11-16 15:45:45] Best score: -1000.000000
+[2025-11-16 15:45:45] Total evaluations: 6
+[2025-11-16 17:22:40] Starting optimization for general workload
+[2025-11-16 17:22:40] Scheduled optimization for workload: general
+[2025-11-16 17:22:40] Workload change detected: general -> compilation
+[2025-11-16 17:22:40] Strategy: adaptive, Budget: 10
+[2025-11-16 17:22:40] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763293960.json
+[2025-11-16 17:22:55] Optimization already in progress, skipping compilation
+[2025-11-16 17:23:40] Applying optimized parameters: {'vm.swappiness': 66.95109439933145, 'vm.dirty_ratio': 13.917041249215462, 'kernel.sched_cfs_bandwidth_slice_us': 3487.949140124666}
+[2025-11-16 17:23:40] All parameters applied successfully
+[2025-11-16 17:23:40] Process priority optimization: {'processes_adjusted': 51, 'high_priority_set': 51, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 17:23:40] Optimization completed in 60.43s
+[2025-11-16 17:23:40] Best score: 48.839684
+[2025-11-16 17:23:40] Total evaluations: 5
+[2025-11-16 17:26:40] Scheduled optimization for workload: general
+[2025-11-16 17:26:40] Starting optimization for general workload
+[2025-11-16 17:26:40] Workload change detected: general -> compilation
+[2025-11-16 17:26:40] Strategy: adaptive, Budget: 10
+[2025-11-16 17:26:40] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763294200.json
+[2025-11-16 17:26:55] Optimization already in progress, skipping compilation
+[2025-11-16 17:27:40] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-16 17:27:40] All parameters applied successfully
+[2025-11-16 17:27:40] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 17:27:40] Optimization completed in 60.57s
+[2025-11-16 17:27:40] Best score: 51.061387
+[2025-11-16 17:27:40] Total evaluations: 5
+[2025-11-16 17:31:38] Starting optimization for general workload
+[2025-11-16 17:31:38] Scheduled optimization for workload: general
+[2025-11-16 17:31:38] Strategy: adaptive, Budget: 10
+[2025-11-16 17:31:38] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763294498.json
+[2025-11-16 17:31:38] Workload change detected: general -> compilation
+[2025-11-16 17:31:53] Optimization already in progress, skipping compilation
+[2025-11-16 17:32:38] Applying optimized parameters: {'vm.swappiness': 45.429438655329186, 'vm.dirty_ratio': 13.883820798596282, 'kernel.sched_cfs_bandwidth_slice_us': 1221.9396379911716}
+[2025-11-16 17:32:38] All parameters applied successfully
+[2025-11-16 17:32:38] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 17:32:38] Optimization completed in 60.35s
+[2025-11-16 17:32:38] Best score: 46.070528
+[2025-11-16 17:32:38] Total evaluations: 5
+[2025-11-16 19:57:46] Scheduled optimization for workload: general
+[2025-11-16 19:57:46] Starting optimization for general workload
+[2025-11-16 19:57:46] Strategy: adaptive, Budget: 10
+[2025-11-16 19:57:46] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763303267.json
+[2025-11-16 19:57:47] Workload change detected: general -> compilation
+[2025-11-16 19:58:02] Optimization already in progress, skipping compilation
+[2025-11-16 19:58:47] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-16 19:58:47] All parameters applied successfully
+[2025-11-16 19:58:47] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 19:58:47] Optimization completed in 60.50s
+[2025-11-16 19:58:47] Best score: 46.097574
+[2025-11-16 19:58:47] Total evaluations: 5
+[2025-11-16 21:46:29] Workload change detected: compilation -> io_intensive
+[2025-11-16 21:46:31] Workload change detected: io_intensive -> compilation
+[2025-11-16 21:46:44] Scheduled optimization for workload: io_intensive
+[2025-11-16 21:46:44] Starting optimization for io_intensive workload
+[2025-11-16 21:46:44] Strategy: bayesian_only, Budget: 10
+[2025-11-16 21:46:44] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763309804.json
+[2025-11-16 21:46:46] Optimization already in progress, skipping compilation
+[2025-11-16 21:47:45] Applying optimized parameters: {'vm.dirty_ratio': 5.156091337987887, 'vm.dirty_background_ratio': 11.567399864211884, 'vm.vfs_cache_pressure': 50.30514717807133}
+[2025-11-16 21:47:45] All parameters applied successfully
+[2025-11-16 21:47:46] Process priority optimization: {'processes_adjusted': 53, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-16 21:47:46] Optimization completed in 62.40s
+[2025-11-16 21:47:46] Best score: 36.792897
+[2025-11-16 21:47:46] Total evaluations: 5
+[2025-11-17 00:00:22] Workload change detected: compilation -> cpu_intensive
+[2025-11-17 00:00:32] Workload change detected: cpu_intensive -> compilation
+[2025-11-17 00:00:37] Scheduled optimization for workload: cpu_intensive
+[2025-11-17 00:00:37] Unknown workload type: cpu_intensive
+[2025-11-17 00:00:47] Scheduled optimization for workload: compilation
+[2025-11-17 00:00:47] Starting optimization for compilation workload
+[2025-11-17 00:00:47] Strategy: adaptive, Budget: 12
+[2025-11-17 00:00:47] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763317847.json
+[2025-11-17 00:00:48] Applying optimized parameters: {'vm.swappiness': 32.879004540108156, 'vm.dirty_ratio': 23.668695797323277, 'vm.dirty_background_ratio': 16.695365004091542, 'kernel.sched_cfs_bandwidth_slice_us': 5581.100947678922, 'kernel.sched_latency_ns': 5566662.02282873}
+[2025-11-17 00:00:48] Failed to apply parameters: ['kernel.sched_latency_ns']
+[2025-11-17 00:00:48] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 00:00:48] Optimization completed in 1.00s
+[2025-11-17 00:00:48] Best score: -1000.000000
+[2025-11-17 00:00:48] Total evaluations: 6
+[2025-11-17 00:17:29] Starting optimization for general workload
+[2025-11-17 00:17:29] Scheduled optimization for workload: general
+[2025-11-17 00:17:29] Workload change detected: general -> compilation
+[2025-11-17 00:17:29] Strategy: adaptive, Budget: 10
+[2025-11-17 00:17:29] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763318849.json
+[2025-11-17 00:17:44] Optimization already in progress, skipping compilation
+[2025-11-17 00:18:30] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-17 00:18:30] All parameters applied successfully
+[2025-11-17 00:18:30] Process priority optimization: {'processes_adjusted': 42, 'high_priority_set': 42, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 00:18:30] Optimization completed in 61.35s
+[2025-11-17 00:18:30] Best score: 47.959992
+[2025-11-17 00:18:30] Total evaluations: 5
+[2025-11-17 11:05:23] Scheduled optimization for workload: general
+[2025-11-17 11:05:23] Starting optimization for general workload
+[2025-11-17 11:05:23] Strategy: adaptive, Budget: 10
+[2025-11-17 11:05:23] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763357723.json
+[2025-11-17 11:05:23] Workload change detected: general -> compilation
+[2025-11-17 11:05:38] Optimization already in progress, skipping compilation
+[2025-11-17 11:06:21] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-17 11:06:21] All parameters applied successfully
+[2025-11-17 11:06:21] Process priority optimization: {'processes_adjusted': 47, 'high_priority_set': 47, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 11:06:21] Optimization completed in 57.98s
+[2025-11-17 11:06:21] Best score: 53.309536
+[2025-11-17 11:06:21] Total evaluations: 5
+[2025-11-17 13:54:48] Scheduled optimization for workload: general
+[2025-11-17 13:54:48] Starting optimization for general workload
+[2025-11-17 13:54:48] Strategy: adaptive, Budget: 10
+[2025-11-17 13:54:48] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763367888.json
+[2025-11-17 13:54:48] Workload change detected: general -> compilation
+[2025-11-17 13:55:03] Optimization already in progress, skipping compilation
+[2025-11-17 13:55:46] Applying optimized parameters: {'vm.swappiness': 62.33718906298977, 'vm.dirty_ratio': 13.5288345330511, 'kernel.sched_cfs_bandwidth_slice_us': 3179.074679945421}
+[2025-11-17 13:55:46] All parameters applied successfully
+[2025-11-17 13:55:46] ⚠️ Failed to send parameters to master node
+[2025-11-17 13:55:46] Process priority optimization: {'processes_adjusted': 2, 'high_priority_set': 2, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 13:55:46] Optimization completed in 57.66s
+[2025-11-17 13:55:46] Best score: 46.457172
+[2025-11-17 13:55:46] Total evaluations: 5
+[2025-11-17 14:23:24] Scheduled optimization for workload: general
+[2025-11-17 14:23:24] Starting optimization for general workload
+[2025-11-17 14:23:24] Strategy: adaptive, Budget: 10
+[2025-11-17 14:23:24] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763369604.json
+[2025-11-17 14:23:24] Workload change detected: general -> compilation
+[2025-11-17 14:23:37] Optimization already in progress, skipping compilation
+[2025-11-17 14:24:21] Applying optimized parameters: {'vm.swappiness': 10.0, 'vm.dirty_ratio': 30.0, 'kernel.sched_cfs_bandwidth_slice_us': 1000.0}
+[2025-11-17 14:24:21] All parameters applied successfully
+[2025-11-17 14:24:21] ⚠️ Failed to send parameters to master node
+[2025-11-17 14:24:21] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 14:24:21] Optimization completed in 57.52s
+[2025-11-17 14:24:21] Best score: 49.890165
+[2025-11-17 14:24:21] Total evaluations: 5
+[2025-11-17 14:51:51] Workload change detected: compilation -> database
+[2025-11-17 14:51:53] Workload change detected: database -> compilation
+[2025-11-17 16:14:21] Scheduled optimization for workload: database
+[2025-11-17 16:14:21] Starting optimization for database workload
+[2025-11-17 16:14:22] Strategy: hybrid_sequential, Budget: 15
+[2025-11-17 16:14:22] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763376262.json
+[2025-11-17 16:14:24] Optimization already in progress, skipping compilation
+[2025-11-17 16:14:25] Optimization failed for database: 'AdvancedGeneticAlgorithm' object has no attribute 'population'
+[2025-11-17 16:32:35] Starting optimization for general workload
+[2025-11-17 16:32:35] Scheduled optimization for workload: general
+[2025-11-17 16:32:35] Strategy: adaptive, Budget: 10
+[2025-11-17 16:32:35] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763377355.json
+[2025-11-17 16:32:35] Workload change detected: general -> compilation
+[2025-11-17 16:32:49] Optimization already in progress, skipping compilation
+[2025-11-17 16:33:33] Applying optimized parameters: {'vm.swappiness': 10.0, 'vm.dirty_ratio': 30.0, 'kernel.sched_cfs_bandwidth_slice_us': 1000.0}
+[2025-11-17 16:33:33] All parameters applied successfully
+[2025-11-17 16:33:33] ⚠️ Failed to send parameters to master node
+[2025-11-17 16:33:33] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 16:33:33] Optimization completed in 58.29s
+[2025-11-17 16:33:33] Best score: 47.288350
+[2025-11-17 16:33:33] Total evaluations: 5
+[2025-11-17 16:43:41] Scheduled optimization for workload: general
+[2025-11-17 16:43:41] Starting optimization for general workload
+[2025-11-17 16:43:41] Strategy: adaptive, Budget: 10
+[2025-11-17 16:43:41] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763378021.json
+[2025-11-17 16:43:41] Workload change detected: general -> compilation
+[2025-11-17 16:43:54] Optimization already in progress, skipping compilation
+[2025-11-17 16:44:38] Applying optimized parameters: {'vm.swappiness': 65.20556782004469, 'vm.dirty_ratio': 13.896273550906432, 'kernel.sched_cfs_bandwidth_slice_us': 3447.6653951442736}
+[2025-11-17 16:44:38] All parameters applied successfully
+[2025-11-17 16:44:38] ⚠️ Failed to send parameters to master node
+[2025-11-17 16:44:38] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 16:44:38] Optimization completed in 57.73s
+[2025-11-17 16:44:39] Best score: 52.951049
+[2025-11-17 16:44:39] Total evaluations: 5
+[2025-11-17 18:09:55] Workload change detected: compilation -> io_intensive
+[2025-11-17 18:09:57] Workload change detected: io_intensive -> compilation
+[2025-11-17 18:10:10] Scheduled optimization for workload: io_intensive
+[2025-11-17 18:10:10] Starting optimization for io_intensive workload
+[2025-11-17 18:10:10] Strategy: bayesian_only, Budget: 10
+[2025-11-17 18:10:10] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763383210.json
+[2025-11-17 18:10:12] Optimization already in progress, skipping compilation
+[2025-11-17 18:11:08] Applying optimized parameters: {'vm.dirty_ratio': 24.760363944069802, 'vm.dirty_background_ratio': 4.418537063169262, 'vm.vfs_cache_pressure': 169.66971614917998}
+[2025-11-17 18:11:08] All parameters applied successfully
+[2025-11-17 18:11:08] ⚠️ Failed to send parameters to master node
+[2025-11-17 18:11:08] Process priority optimization: {'processes_adjusted': 49, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 18:11:08] Optimization completed in 58.17s
+[2025-11-17 18:11:08] Best score: 39.421055
+[2025-11-17 18:11:08] Total evaluations: 5
+[2025-11-17 19:08:38] Starting optimization for general workload
+[2025-11-17 19:08:38] Scheduled optimization for workload: general
+[2025-11-17 19:08:38] Strategy: adaptive, Budget: 10
+[2025-11-17 19:08:38] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763386718.json
+[2025-11-17 19:08:38] Workload change detected: general -> compilation
+[2025-11-17 19:08:52] Optimization already in progress, skipping compilation
+[2025-11-17 19:09:35] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-17 19:09:35] All parameters applied successfully
+[2025-11-17 19:09:35] ⚠️ Failed to send parameters to master node
+[2025-11-17 19:09:35] Process priority optimization: {'processes_adjusted': 49, 'high_priority_set': 49, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 19:09:35] Optimization completed in 57.55s
+[2025-11-17 19:09:35] Best score: 47.475513
+[2025-11-17 19:09:35] Total evaluations: 5
+[2025-11-17 19:17:26] Workload change detected: compilation -> general
+[2025-11-17 19:17:32] Workload change detected: general -> io_intensive
+[2025-11-17 19:17:41] Scheduled optimization for workload: general
+[2025-11-17 19:17:41] Starting optimization for general workload
+[2025-11-17 19:17:41] Strategy: adaptive, Budget: 10
+[2025-11-17 19:17:41] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763387261.json
+[2025-11-17 19:17:46] Optimization already in progress, skipping io_intensive
+[2025-11-17 19:18:41] Applying optimized parameters: {'vm.swappiness': 63.022482170610985, 'vm.dirty_ratio': 13.039377271842973, 'kernel.sched_cfs_bandwidth_slice_us': 3308.071872024535}
+[2025-11-17 19:18:40] All parameters applied successfully
+[2025-11-17 19:18:40] ⚠️ Failed to send parameters to master node
+[2025-11-17 19:18:41] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 19:18:41] Optimization completed in 59.90s
+[2025-11-17 19:18:41] Best score: 59.281557
+[2025-11-17 19:18:41] Total evaluations: 5
+[2025-11-17 19:19:10] Workload change detected: io_intensive -> compilation
+[2025-11-17 19:19:25] Stability period not met, delaying optimization for compilation
+[2025-11-17 20:06:32] Workload change detected: compilation -> io_intensive
+[2025-11-17 20:06:46] Scheduled optimization for workload: io_intensive
+[2025-11-17 20:06:46] Starting optimization for io_intensive workload
+[2025-11-17 20:06:46] Strategy: bayesian_only, Budget: 10
+[2025-11-17 20:06:46] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763390206.json
+[2025-11-17 20:07:48] Applying optimized parameters: {'vm.dirty_ratio': 24.913574671505827, 'vm.dirty_background_ratio': 4.38465226826013, 'vm.vfs_cache_pressure': 166.95365004091542}
+[2025-11-17 20:07:49] All parameters applied successfully
+[2025-11-17 20:07:49] ⚠️ Failed to send parameters to master node
+[2025-11-17 20:07:58] Process priority optimization: {'processes_adjusted': 94, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 20:07:58] Optimization completed in 72.65s
+[2025-11-17 20:07:59] Best score: 36.278866
+[2025-11-17 20:07:59] Total evaluations: 5
+[2025-11-17 20:08:29] Workload change detected: io_intensive -> compilation
+[2025-11-17 20:08:44] Stability period not met, delaying optimization for compilation
+[2025-11-17 20:13:46] Scheduled optimization for workload: general
+[2025-11-17 20:13:46] Starting optimization for general workload
+[2025-11-17 20:13:46] Strategy: adaptive, Budget: 10
+[2025-11-17 20:13:46] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763390626.json
+[2025-11-17 20:13:46] Workload change detected: general -> compilation
+[2025-11-17 20:14:00] Optimization already in progress, skipping compilation
+[2025-11-17 20:14:43] Applying optimized parameters: {'vm.swappiness': 63.331675055904384, 'vm.dirty_ratio': 13.356463366950475, 'kernel.sched_cfs_bandwidth_slice_us': 3411.9798920999783}
+[2025-11-17 20:14:43] All parameters applied successfully
+[2025-11-17 20:14:43] ⚠️ Failed to send parameters to master node
+[2025-11-17 20:14:43] Process priority optimization: {'processes_adjusted': 49, 'high_priority_set': 49, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 20:14:43] Optimization completed in 57.73s
+[2025-11-17 20:14:43] Best score: 51.397270
+[2025-11-17 20:14:43] Total evaluations: 5
+[2025-11-17 20:26:07] Starting optimization for general workload
+[2025-11-17 20:26:07] Scheduled optimization for workload: general
+[2025-11-17 20:26:07] Strategy: adaptive, Budget: 10
+[2025-11-17 20:26:07] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763391367.json
+[2025-11-17 20:26:07] Workload change detected: general -> compilation
+[2025-11-17 20:26:21] Optimization already in progress, skipping compilation
+[2025-11-17 20:27:05] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-17 20:27:05] All parameters applied successfully
+[2025-11-17 20:27:06] 📡 Optimized parameters sent to master node
+[2025-11-17 20:27:06] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 20:27:06] Optimization completed in 58.84s
+[2025-11-17 20:27:06] Best score: 46.438935
+[2025-11-17 20:27:06] Total evaluations: 5
+[2025-11-17 21:20:58] Workload change detected: compilation -> io_intensive
+[2025-11-17 21:21:12] Starting optimization for io_intensive workload
+[2025-11-17 21:21:12] Scheduled optimization for workload: io_intensive
+[2025-11-17 21:21:12] Strategy: bayesian_only, Budget: 10
+[2025-11-17 21:21:12] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763394672.json
+[2025-11-17 21:22:13] Applying optimized parameters: {'vm.dirty_ratio': 5.1271667322494565, 'vm.dirty_background_ratio': 14.937081746036107, 'vm.vfs_cache_pressure': 56.333158743922}
+[2025-11-17 21:22:13] All parameters applied successfully
+[2025-11-17 21:22:13] 📡 Optimized parameters sent to master node
+[2025-11-17 21:22:16] Process priority optimization: {'processes_adjusted': 85, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 21:22:16] Optimization completed in 64.31s
+[2025-11-17 21:22:16] Best score: 49.194849
+[2025-11-17 21:22:16] Total evaluations: 5
+[2025-11-17 21:23:28] Workload change detected: io_intensive -> compilation
+[2025-11-17 21:23:43] Scheduled optimization for workload: compilation
+[2025-11-17 21:23:43] Starting optimization for compilation workload
+[2025-11-17 21:23:43] Strategy: adaptive, Budget: 12
+[2025-11-17 21:23:43] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763394823.json
+[2025-11-17 21:23:44] Applying optimized parameters: {'vm.swappiness': 32.879004540108156, 'vm.dirty_ratio': 23.668695797323277, 'vm.dirty_background_ratio': 16.695365004091542, 'kernel.sched_cfs_bandwidth_slice_us': 5581.100947678922, 'kernel.sched_latency_ns': 5566662.02282873}
+[2025-11-17 21:23:44] Failed to apply parameters: ['kernel.sched_latency_ns']
+[2025-11-17 21:23:44] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 21:23:44] Optimization completed in 0.59s
+[2025-11-17 21:23:44] Best score: -1000.000000
+[2025-11-17 21:23:44] Total evaluations: 6
+[2025-11-17 22:03:18] Workload change detected: compilation -> io_intensive
+[2025-11-17 22:03:32] Scheduled optimization for workload: io_intensive
+[2025-11-17 22:03:32] Starting optimization for io_intensive workload
+[2025-11-17 22:03:32] Strategy: bayesian_only, Budget: 10
+[2025-11-17 22:03:32] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763397212.json
+[2025-11-17 22:04:22] Workload change detected: io_intensive -> compilation
+[2025-11-17 22:04:25] Workload change detected: compilation -> io_intensive
+[2025-11-17 22:04:33] Applying optimized parameters: {'vm.dirty_ratio': 25.117781118480078, 'vm.dirty_background_ratio': 4.022494440370512, 'vm.vfs_cache_pressure': 166.33019681190984}
+[2025-11-17 22:04:33] All parameters applied successfully
+[2025-11-17 22:04:34] 📡 Optimized parameters sent to master node
+[2025-11-17 22:04:34] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 22:04:34] Optimization completed in 61.88s
+[2025-11-17 22:04:34] Best score: 40.642728
+[2025-11-17 22:04:34] Total evaluations: 5
+[2025-11-17 22:04:37] Stability period not met, delaying optimization for compilation
+[2025-11-17 22:04:41] Stability period not met, delaying optimization for io_intensive
+[2025-11-17 22:06:12] Workload change detected: io_intensive -> compilation
+[2025-11-17 22:06:26] Scheduled optimization for workload: compilation
+[2025-11-17 22:06:26] Starting optimization for compilation workload
+[2025-11-17 22:06:26] Strategy: adaptive, Budget: 12
+[2025-11-17 22:06:26] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763397386.json
+[2025-11-17 22:06:26] Applying optimized parameters: {'vm.swappiness': 32.879004540108156, 'vm.dirty_ratio': 23.668695797323277, 'vm.dirty_background_ratio': 16.695365004091542, 'kernel.sched_cfs_bandwidth_slice_us': 5581.100947678922, 'kernel.sched_latency_ns': 5566662.02282873}
+[2025-11-17 22:06:26] Failed to apply parameters: ['kernel.sched_latency_ns']
+[2025-11-17 22:06:26] Process priority optimization: {'processes_adjusted': 0, 'high_priority_set': 0, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 22:06:26] Optimization completed in 0.58s
+[2025-11-17 22:06:26] Best score: -1000.000000
+[2025-11-17 22:06:26] Total evaluations: 6
+[2025-11-17 22:11:09] Scheduled optimization for workload: general
+[2025-11-17 22:11:09] Starting optimization for general workload
+[2025-11-17 22:11:09] Strategy: adaptive, Budget: 10
+[2025-11-17 22:11:09] Created parameter backup: /tmp/kernel_optimizer_backup/kernel_params_backup_1763397669.json
+[2025-11-17 22:11:09] Workload change detected: general -> compilation
+[2025-11-17 22:11:24] Optimization already in progress, skipping compilation
+[2025-11-17 22:12:08] Applying optimized parameters: {'vm.swappiness': 65.75800908021631, 'vm.dirty_ratio': 13.668695797323277, 'kernel.sched_cfs_bandwidth_slice_us': 3339.0730008183086}
+[2025-11-17 22:12:08] All parameters applied successfully
+[2025-11-17 22:12:08] 📡 Optimized parameters sent to master node
+[2025-11-17 22:12:08] Process priority optimization: {'processes_adjusted': 49, 'high_priority_set': 49, 'low_priority_set': 0, 'errors': 0, 'short_lived_filtered': 0, 'processes_tracked': 0}
+[2025-11-17 22:12:08] Optimization completed in 59.38s
+[2025-11-17 22:12:08] Best score: 47.509584
+[2025-11-17 22:12:08] Total evaluations: 5

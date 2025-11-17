@@ -11,9 +11,17 @@ from pathlib import Path
 import os
 import threading
 
-# Add src directory to Python path so imports work correctly
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
+# Add src directory and all subdirectories to path
+project_root = os.path.join(os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(project_root, 'src'))
+sys.path.insert(0, os.path.join(project_root, 'src', 'api'))
+sys.path.insert(0, os.path.join(project_root, 'src', 'core'))
+sys.path.insert(0, os.path.join(project_root, 'src', 'data'))
+sys.path.insert(0, os.path.join(project_root, 'src', 'monitoring'))
+sys.path.insert(0, os.path.join(project_root, 'src', 'optimization'))
+sys.path.insert(0, os.path.join(project_root, 'src', 'system'))
+sys.path.insert(0, os.path.join(project_root, 'src', 'utils'))
+sys.path.insert(0, os.path.join(project_root, 'src', 'workload'))
 def main():
     print("="*60)
     print("   Continuous Kernel Optimization Framework")
@@ -118,7 +126,7 @@ def main():
         print("  • Metrics: http://localhost:9300/metrics")
         print("  • Status: http://localhost:9300/status")
         print("\n🕛Status updates will appear every 30 seconds...")
-        print("View detailed logs: tail -f continuous_optimizer_test.log\n")
+        print("View detailed logs: tail -f results/logs/continuous_optimizer_test.log\n")
         
         # Status update loop
         status_counter = 0
