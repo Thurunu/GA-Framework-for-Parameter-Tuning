@@ -9,6 +9,7 @@ import socket
 import platform
 import os
 import time
+import logging
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from PerformanceMonitor import PerformanceMonitor
@@ -20,6 +21,8 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()  # Load environment variables from .env file
+
+logger = logging.getLogger(__name__)
 
 project_root = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, os.path.join(project_root, 'monitoring'))
@@ -50,7 +53,7 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
             api_key = os.getenv("API_KEY")
             username = getpass.getuser()  # safer than os.getlogin()
             hostname = socket.gethostname()
-            print(f"MASTER_URL: {master_url}, API_KEY: {api_key}")
+            # print(f"MASTER_URL: {master_url}, API_KEY: {api_key}")
             if master_url and api_key:
                 cls.reporter = AgentReporter(
                     agent_id=f"{username}@{hostname}",
@@ -81,12 +84,11 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
             print(f"❌ Failed to connect to centralized management: {e}")
             cls.reporter = None
             cls.reporter_initialized = True
-        print("Starting Continuous Kernel Optimization System...")
+        # print("Starting Continuous Kernel Optimization System...")
     
     def log_message(self, format, *args):
         """Override to customize logging"""
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        print(f"[{timestamp}] {self.address_string()} - {format % args}")
+      
     
     def send_json_response(self, data, status_code=200):
         """Send JSON response"""
@@ -383,6 +385,101 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                     "parameters": parameters,
                     "performance_weights": profile.performance_weights,
                     "total_parameters": len(parameters)
+                }
+                
+                self.send_json_response(response)
+            
+            # NEW: Configuration update endpoint
+            elif path == '/config/update':
+                """
+                Handle configuration updates from central management server
+                Request body:
+                {
+                    "update_id": "unique-update-id",
+                    "updates": {
+                        "add_parameters": [...],
+                        "update_parameters": [...],
+                        "add_workloads": [...],
+                        "update_workloads": [...],
+                        "apply_to_system": [...]
+                    }
+                }
+                """
+                from ConfigurationManager import get_config_manager
+                
+                update_id = request_data.get('update_id', 'unknown')
+                updates = request_data.get('updates', {})
+                
+                if not updates:
+                    self.send_json_response(
+                        {"error": "No updates provided"},
+                        status_code=400
+                    )
+                    return
+                
+                # Get configuration manager
+                config_mgr = get_config_manager()
+                
+                # Apply batch updates
+                results = config_mgr.apply_batch_update(updates)
+                
+                # Report results back to master if reporter is available (non-blocking)
+                ack_status = None
+                if self.reporter:
+                    try:
+                        status = 'success' if results['failed'] == 0 else ('partial' if results['successful'] > 0 else 'failed')
+                        ack_success = self.reporter.acknowledge_configuration_update(update_id, status, results)
+                        ack_status = 'sent' if ack_success else 'failed'
+                    except Exception as e:
+                        # Don't fail the whole request if acknowledgment fails
+                        logger.warning(f"Failed to acknowledge config update to master: {e}")
+                        ack_status = 'timeout'
+                
+                response = {
+                    "update_id": update_id,
+                    "status": "completed",
+                    "results": results,
+                    "acknowledgment": ack_status,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                self.send_json_response(response)
+            
+            # NEW: Get current configuration endpoint
+            elif path == '/config/current':
+                """
+                Return current configuration state
+                """
+                from ConfigurationManager import get_config_manager
+                
+                config_mgr = get_config_manager()
+                current_config = config_mgr.get_current_configurations()
+                
+                # Optionally report to master
+                if self.reporter and request_data.get('report_to_master', False):
+                    self.reporter.report_current_configuration(current_config)
+                
+                response = {
+                    "configuration": current_config,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                self.send_json_response(response)
+            
+            # NEW: Reload configurations endpoint
+            elif path == '/config/reload':
+                """
+                Reload all configurations from disk
+                """
+                from ConfigurationManager import get_config_manager
+                
+                config_mgr = get_config_manager()
+                reload_status = config_mgr.reload_configurations()
+                
+                response = {
+                    "reload_status": reload_status,
+                    "all_successful": all(reload_status.values()),
+                    "timestamp": datetime.now().isoformat()
                 }
                 
                 self.send_json_response(response)

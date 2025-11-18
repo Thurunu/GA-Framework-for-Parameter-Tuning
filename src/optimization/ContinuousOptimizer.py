@@ -111,14 +111,13 @@ class ContinuousOptimizer:
         # Initial optimization with general profile
         self._schedule_optimization('general')
 
-        print("Continuous optimization system started!")
-        print("Monitoring processes and adapting parameters...")
-        print(f"Logs: {self.log_file}")
+        # print("Continuous optimization system started!")
+        # print("Monitoring processes and adapting parameters...")
+        # print(f"Logs: {self.log_file}")
 
     def stop_continuous_optimization(self):
         """Stop the continuous optimization system"""
-        print("Stopping continuous optimization...")
-
+        # print("Stopping continuous optimization...")
         self.running = False
 
         # Stop monitoring
@@ -236,6 +235,7 @@ class ContinuousOptimizer:
                     
                     # Send optimized parameters to master node if agent is registered
                     reporter = self.data_store.get_agent_reporter()
+                    print(f"⚠️Reporter: {reporter}")
                     if reporter and reporter.registered:
                         try:
                             optimization_time = time.time() - start_time
@@ -357,7 +357,7 @@ class ContinuousOptimizer:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         log_entry = f"[{timestamp}] {message}"
 
-        print(log_entry)
+        print(f"⚠️Logging: {log_entry}")
 
         try:
             with open(self.log_file, 'a', encoding='utf-8') as f:

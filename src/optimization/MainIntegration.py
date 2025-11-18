@@ -65,8 +65,8 @@ class KernelOptimizationFramework:
         self.session_history = []
         
         print(f"Kernel Optimization Framework initialized")
-        print(f"Optimizable parameters: {len(self.parameter_bounds)}")
-        print(f"Parameter bounds: {list(self.parameter_bounds.keys())}")
+        # print(f"Optimizable parameters: {len(self.parameter_bounds)}")
+        # print(f"Parameter bounds: {list(self.parameter_bounds.keys())}")
     
     def create_performance_objective(self, 
                                    evaluation_duration: int = 30,
@@ -217,8 +217,8 @@ class KernelOptimizationFramework:
         print(f"Time budget: {time_budget:.0f} seconds")
         
         # Create backup of current parameters
-        backup_file = self.kernel_interface.backup_current_parameters()
-        print(f"Parameter backup created: {backup_file}")
+        # backup_file = self.kernel_interface.backup_current_parameters()
+        # print(f"Parameter backup created: {backup_file}")
         
         # Initialize optimization engine
         self.optimization_engine = HybridOptimizationEngine(
@@ -321,83 +321,3 @@ class KernelOptimizationFramework:
             "average_improvement": np.mean([s.best_score for s in completed_sessions if s.best_score is not None])
         }
 
-# Example usage
-if __name__ == "__main__":
-    print("Linux Kernel Optimization Framework - Integration Test")
-    print("=" * 60)
-    
-    # For testing purposes, we'll use a mock objective function
-    # In real usage, you would use the performance-based objective
-    
-    # Define a subset of parameters for testing
-    test_parameter_bounds = {
-        'vm.swappiness': (0, 100),
-        'vm.dirty_ratio': (5, 40),
-        'kernel.sched_min_granularity_ns': (1000000, 20000000)
-    }
-    
-    # Initialize framework
-    framework = KernelOptimizationFramework(
-        parameter_bounds=test_parameter_bounds,
-        monitoring_interval=0.5
-    )
-    
-    # Mock objective function for testing (replace with real performance measurement)
-    def mock_objective_function(params: Dict[str, float]) -> float:
-        """Mock function for testing - replace with real performance evaluation"""
-        swappiness = params.get('vm.swappiness', 60)
-        dirty_ratio = params.get('vm.dirty_ratio', 20)
-        sched_gran = params.get('kernel.sched_min_granularity_ns', 10000000)
-        
-        # Simulate performance score
-        score = (
-            -0.01 * (swappiness - 30)**2 +
-            -0.1 * (dirty_ratio - 15)**2 +
-            -0.000000001 * (sched_gran - 6000000)**2
-        ) + np.random.normal(0, 0.5)
-        
-        print(f"Mock evaluation - Score: {score:.6f}")
-        return score
-    
-    # Replace the framework's objective function for testing
-    framework.create_performance_objective = lambda **kwargs: mock_objective_function
-    
-    print("Starting test optimization session...")
-    
-    # Test optimization with different strategies
-    strategies_to_test = [
-        OptimizationStrategy.BAYESIAN_ONLY,
-        OptimizationStrategy.ADAPTIVE
-    ]
-    
-    for strategy in strategies_to_test:
-        print(f"\nTesting strategy: {strategy.value}")
-        print("-" * 40)
-        
-        try:
-            session_id = framework.start_optimization_session(
-                workload_type="test",
-                strategy=strategy,
-                evaluation_budget=20,
-                time_budget=120.0,  # 2 minutes for testing
-                evaluation_duration=1  # Short evaluation for testing
-            )
-            
-            print(f"Session {session_id} completed")
-            
-        except Exception as e:
-            print(f"Error in optimization session: {e}")
-    
-    # Get summary
-    summary = framework.get_optimization_summary()
-    print(f"\nOptimization Summary:")
-    print(f"Total sessions: {summary.get('total_sessions', 0)}")
-    print(f"Completed sessions: {summary.get('completed_sessions', 0)}")
-    
-    if 'best_session' in summary:
-        best = summary['best_session']
-        print(f"Best session: {best['session_id']}")
-        print(f"Best score: {best['best_score']:.6f}")
-        print(f"Best parameters: {best['best_parameters']}")
-    
-    print("\nFramework integration test completed!")

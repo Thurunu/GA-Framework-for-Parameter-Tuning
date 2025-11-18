@@ -83,6 +83,44 @@ class AgentReporter:
         except Exception:
             return "127.0.0.1"
     
+    def validate_authentication(self) -> bool:
+        """Validate agent authentication with master node
+        
+        Returns:
+            True if authentication is valid, False otherwise
+        """
+        try:
+            # Pass API key both as query param and header for compatibility
+            response = self.session.get(
+                f"{self.master_url}/api/agents/validate",
+                params={
+                    "agent_id": self.agent_id,
+                    "x_api_key": self.api_key  # API key as query parameter
+                },
+                headers={"X-API-Key": self.api_key},  # Also as header
+                timeout=5
+            )
+            
+            print(f"🔍 Validation request: {response.url}")
+            print(f"📡 Response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"📦 Response data: {data}")
+                self.registered = True
+                if data.get('authenticated', False):
+                    logger.info(f"✅ Authentication validated: {data.get('message', '')}")
+                    return True
+                else:
+                    logger.warning(f"❌ Authentication failed: {data.get('message', '')}")
+                    return False
+            else:
+                logger.error(f"❌ Validation request failed: {response.status_code} - {response.text}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Validation error: {e}")
+            return False
     def register(self, version: str = "1.0.0", metadata: Dict = None) -> bool:
         """
         Register this agent with the master node
@@ -94,45 +132,59 @@ class AgentReporter:
         Returns:
             True if registration successful, False otherwise
         """
-        try:
-            system_info = self.get_system_info()
-            
-            payload = {
-                "agent_id": self.agent_id,
-                "hostname": system_info["hostname"],
-                "ip_address": system_info["ip_address"],
-                "version": version,
-                "metadata": {
-                    **system_info,
-                    **(metadata or {})
+        # First validate authentication before attempting registration
+        if not self.validate_authentication():
+            logger.error("❌ Authentication validation failed. Cannot register agent.")
+            print("❌ Authentication validation failed. Please check your API key and agent ID.")
+        
+            try:
+                system_info = self.get_system_info()
+                
+                payload = {
+                    "agent_id": self.agent_id,
+                    "hostname": system_info["hostname"],
+                    "ip_address": system_info["ip_address"],
+                    "version": version,
+                    "metadata": {
+                        **system_info,
+                        **(metadata or {})
+                    }
                 }
-            }
-            print("Registering agent with payload:", json.dumps(payload, indent=2))
-            
-            response = self.session.post(
-                f"{self.master_url}/api/agents/register",
-                json=payload,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.registered = True
-                logger.info(f"✅ Agent registered successfully: {self.agent_id}")
-                print(f"✅ Agent registered successfully: {self.agent_id}")
+                print("Registering agent with payload:", json.dumps(payload, indent=2))
                 
-                # Store any configuration returned by master
-                if 'config' in data:
-                    self.config = data['config']
+                # Send agent_id and x_api_key as query parameters like validation endpoint
+                response = self.session.post(
+                    f"{self.master_url}/api/agents/register",
+                    params={
+                        "agent_id": self.agent_id,
+                        "x_api_key": self.api_key
+                    },
+                    json=payload,
+                    timeout=10
+                )
                 
-                return True
-            else:
-                logger.error(f"❌ Registration failed: {response.status_code} - {response.text}")
+                print(f"🔍 Registration request: {response.url}")
+                print(f"📡 Response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    self.registered = True
+                    logger.info(f"✅ Agent registered successfully: {self.agent_id}")
+                    print(f"✅ Agent registered successfully: {self.agent_id}")
+                    
+                    # Store any configuration returned by master
+                    if 'config' in data:
+                        self.config = data['config']
+                    
+                    return True
+                else:
+                    logger.error(f"❌ Registration failed: {response.status_code} - {response.text}")
+                    return False
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"❌ Registration error: {e}")
                 return False
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Registration error: {e}")
-            return False
+        logger.info("✅ Authentication validated. Proceeding with registration...")
     
     def set_heartbeat(self, metrics: Dict, workload_type: str = None, 
                       optimization_score: float = None) -> Dict:
@@ -352,7 +404,6 @@ class AgentReporter:
                 "timestamp": datetime.now().isoformat(),
                 "parameter_count": len(parameters)
             }
-            print("♻️♻️♻️♻️")
             print(f"DEBUG: payload data: {json.dumps(payload, indent=2)}")
             response = self.session.post(
                 f"{self.master_url}/api/parameters/optimized_parameters",
@@ -407,6 +458,153 @@ class AgentReporter:
             )
             return response.status_code == 200
         except requests.exceptions.RequestException:
+            return False
+    
+    # =========================================================================
+    # CONFIGURATION SYNCHRONIZATION - NEW FEATURE
+    # =========================================================================
+    
+    def fetch_configuration_updates(self) -> Dict[str, Any]:
+        """
+        Fetch pending configuration updates from master server
+        
+        Returns:
+            Dictionary containing configuration updates:
+            {
+                'has_updates': bool,
+                'updates': {
+                    'add_parameters': [...],
+                    'update_parameters': [...],
+                    'add_workloads': [...],
+                    'update_workloads': [...],
+                    'apply_to_system': [...]
+                },
+                'timestamp': str
+            }
+        """
+        try:
+            response = self.session.get(
+                f"{self.master_url}/api/agents/{self.agent_id}/config_updates",
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('has_updates', False):
+                    logger.info(f"📥 Configuration updates available from master")
+                return data
+            else:
+                logger.warning(f"⚠️ Failed to fetch config updates: {response.status_code}")
+                return {'has_updates': False, 'updates': {}}
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Config update fetch error: {e}")
+            return {'has_updates': False, 'updates': {}}
+    
+    def acknowledge_configuration_update(self, update_id: str, status: str, 
+                                        results: Dict = None) -> bool:
+        """
+        Acknowledge that configuration update has been applied
+        
+        Args:
+            update_id: ID of the configuration update
+            status: Status ('success', 'partial', 'failed')
+            results: Detailed results of the update operation
+            
+        Returns:
+            True if acknowledgment was sent successfully
+        """
+        try:
+            payload = {
+                'update_id': update_id,
+                'status': status,
+                'results': results,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            response = self.session.post(
+                f"{self.master_url}/api/agents/{self.agent_id}/config_update_ack",
+                json=payload,
+                timeout=3  # Reduced timeout to 3 seconds
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"✅ Configuration update acknowledged: {update_id}")
+                return True
+            else:
+                logger.warning(f"⚠️ Config update ACK failed: {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ Config update ACK timeout (master server not responding)")
+            return False
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"⚠️ Config update ACK failed (master server not reachable)")
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Config update ACK error: {e}")
+            return False
+    
+    def request_configuration_sync(self) -> Dict[str, Any]:
+        """
+        Request full configuration synchronization from master
+        
+        Returns:
+            Complete configuration from master server
+        """
+        try:
+            response = self.session.get(
+                f"{self.master_url}/api/agents/{self.agent_id}/full_config",
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                config = response.json()
+                logger.info(f"✅ Full configuration synced from master")
+                return config
+            else:
+                logger.warning(f"⚠️ Config sync failed: {response.status_code}")
+                return {}
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Config sync error: {e}")
+            return {}
+    
+    def report_current_configuration(self, config_data: Dict[str, Any]) -> bool:
+        """
+        Report current configuration state to master
+        
+        Args:
+            config_data: Current configuration data including:
+                - kernel_parameters
+                - workload_patterns
+                - optimization_profiles
+                
+        Returns:
+            True if report was sent successfully
+        """
+        try:
+            payload = {
+                'agent_id': self.agent_id,
+                'configuration': config_data,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            response = self.session.post(
+                f"{self.master_url}/api/agents/{self.agent_id}/current_config",
+                json=payload,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"✅ Current configuration reported to master")
+                return True
+            else:
+                logger.warning(f"⚠️ Config report failed: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Config report error: {e}")
             return False
 
 

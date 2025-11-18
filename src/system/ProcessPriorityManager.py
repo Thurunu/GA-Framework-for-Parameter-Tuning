@@ -401,8 +401,7 @@ class ProcessPriorityManager:
 
 def main():
     """Test the ProcessPriorityManager"""
-    print("Process Priority Manager - EEVDF Scheduler Support")
-    print("=" * 60)
+    
     
     # Initialize manager
     manager = ProcessPriorityManager()
