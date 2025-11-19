@@ -522,6 +522,165 @@ class ConfigurationManager:
     # BATCH UPDATES
     # =========================================================================
 
+    def update_optimization_profile(self, profile_name: str, updates: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        Update an existing optimization profile
+        
+        Args:
+            profile_name: Name of profile to update
+            updates: Dictionary of fields to update
+            
+        Returns:
+            (success, message)
+        """
+        try:
+            # Create backup first
+            self.create_backup('optimization_profiles')
+            
+            # Load configuration file
+            with open(self.optimization_profiles_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {'profiles': {}}
+            
+            # Check if profile exists
+            if profile_name not in config['profiles']:
+                return False, f"Profile '{profile_name}' not found. Use add_new_optimization_profile to create it."
+            
+            # Update fields
+            for field, value in updates.items():
+                config['profiles'][profile_name][field] = value
+            
+            # Write updated configuration
+            with open(self.optimization_profiles_file, 'w', encoding='utf-8') as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+            
+            # Log the change
+            self.change_log.append({
+                'timestamp': datetime.now().isoformat(),
+                'action': 'update_optimization_profile',
+                'profile': profile_name,
+                'updates': updates
+            })
+            
+            logger.info(f"✅ Updated optimization profile: {profile_name}")
+            print(f"✅ Updated optimization profile: {profile_name}")
+            return True, f"Successfully updated profile: {profile_name}"
+
+        except Exception as e:
+            logger.error(f"Failed to update optimization profile: {e}")
+            return False, f"Error: {str(e)}"
+    def delete_optimization_profile(self, profile_name: str) -> Tuple[bool, str]:
+        """
+        Delete an optimization profile
+        
+        Args:
+            profile_name: Name of profile to delete
+            
+        Returns:
+            (success, message)
+        """
+        try:
+            # Create backup first
+            self.create_backup('optimization_profiles')
+            
+            # Load configuration file
+            with open(self.optimization_profiles_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {'profiles': {}}
+            
+            # Check if profile exists
+            if profile_name not in config['profiles']:
+                return False, f"Profile '{profile_name}' not found."
+            
+            # Delete the profile
+            deleted_config = config['profiles'].pop(profile_name)
+            
+            # Write updated configuration
+            with open(self.optimization_profiles_file, 'w', encoding='utf-8') as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+            
+            # Log the change
+            self.change_log.append({
+                'timestamp': datetime.now().isoformat(),
+                'action': 'delete_optimization_profile',
+                'profile': profile_name,
+                'deleted_config': deleted_config
+            })
+            
+            logger.info(f"✅ Deleted optimization profile: {profile_name}")
+            print(f"✅ Deleted optimization profile: {profile_name}")
+            return True, f"Successfully deleted profile: {profile_name}"
+
+        except Exception as e:
+            logger.error(f"Failed to delete optimization profile: {e}")
+            return False, f"Error: {str(e)}"
+    def add_new_optimization_profile(self, profile_name: str, profile_config: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        Add a new optimization profile
+        
+        Args:
+            profile_name: Name of the new profile
+            profile_config: Profile configuration dict with keys:
+                - workload_type
+                - strategy
+                - evaluation_budget
+                - time_budget
+                - parameter_bounds
+                - performance_weights
+                
+        Returns:
+            (success, message)
+        """
+        try:
+            # Create backup first
+            self.create_backup('optimization_profiles')
+            
+            # Load configuration file
+            with open(self.optimization_profiles_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {'profiles': {}}
+            
+            # Check if profile already exists
+            if profile_name in config['profiles']:
+                return False, f"Profile '{profile_name}' already exists. Use update_optimization_profile to modify it."
+            
+            # Validate required fields
+            required_fields = ['workload_type', 'strategy', 'evaluation_budget', 'time_budget', 'parameter_bounds', 'performance_weights']
+            for field in required_fields:
+                if field not in profile_config:
+                    return False, f"Missing required field: {field}"
+            
+            # Add new optimization profile
+            config['profiles'][profile_name] = {
+                'workload_type': profile_config['workload_type'],
+                'strategy': profile_config['strategy'],
+                'evaluation_budget': profile_config['evaluation_budget'],
+                'time_budget': profile_config['time_budget'],
+                'parameter_bounds': profile_config['parameter_bounds'],
+                'performance_weights': profile_config['performance_weights']
+            }
+            
+            # Write updated configuration
+            with open(self.optimization_profiles_file, 'w', encoding='utf-8') as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+            
+            # Log the change
+            self.change_log.append({
+                'timestamp': datetime.now().isoformat(),
+                'action': 'add_optimization_profile',
+                'profile': profile_name,
+                'config': profile_config
+            })
+            
+            logger.info(f"✅ Added optimization profile: {profile_name}")
+            print(f"✅ Added optimization profile: {profile_name}")
+            return True, f"Successfully added profile: {profile_name}"
+
+        except Exception as e:
+            logger.error(f"Failed to add new optimization profile: {e}")
+            return False, f"Error: {str(e)}"
+
+    # =========================================================================
+    # BATCH UPDATES
+    # =========================================================================
+
     def apply_batch_update(self, updates: Dict[str, Any]) -> Dict[str, Any]:
         """
         Apply multiple configuration updates in a batch
@@ -533,14 +692,15 @@ class ConfigurationManager:
                     'update_parameters': [{'name': '...', 'updates': {...}}, ...],
                     'add_workloads': [{'name': '...', 'config': {...}}, ...],
                     'update_workloads': [{'name': '...', 'updates': {...}}, ...],
+                    'add_optimization_profiles': [{'name': '...', 'config': {...}}, ...],
+                    'update_optimization_profiles': [{'name': '...', 'updates': {...}}, ...],
+                    'delete_optimization_profiles': [{'name': '...'}, ...],
                     'apply_to_system': [{'param': '...', 'value': ...}, ...]
                 }
 
         Returns:
             Results dictionary with success/failure for each operation
         """
-        print("❤️❤️❤️❤️")
-        print(updates)
         results = {
             'timestamp': datetime.now().isoformat(),
             'total_operations': 0,
@@ -601,6 +761,51 @@ class ConfigurationManager:
             results['details'].append({
                 'operation': 'update_workload',
                 'name': workload_update['name'],
+                'success': success,
+                'message': message
+            })
+            if success:
+                results['successful'] += 1
+            else:
+                results['failed'] += 1
+
+        # Add new optimization profiles
+        for profile_update in updates.get('add_optimization_profiles', []):
+            results['total_operations'] += 1
+            success, message = self.add_new_optimization_profile(profile_update['name'], profile_update['config'])
+            results['details'].append({
+                'operation': 'add_optimization_profile',
+                'name': profile_update['name'],
+                'success': success,
+                'message': message
+            })
+            if success:
+                results['successful'] += 1
+            else:
+                results['failed'] += 1
+
+        # Update existing optimization profiles
+        for profile_update in updates.get('update_optimization_profiles', []):
+            results['total_operations'] += 1
+            success, message = self.update_optimization_profile(profile_update['name'], profile_update['updates'])
+            results['details'].append({
+                'operation': 'update_optimization_profile',
+                'name': profile_update['name'],
+                'success': success,
+                'message': message
+            })
+            if success:
+                results['successful'] += 1
+            else:
+                results['failed'] += 1
+
+        # Delete optimization profiles
+        for profile_delete in updates.get('delete_optimization_profiles', []):
+            results['total_operations'] += 1
+            success, message = self.delete_optimization_profile(profile_delete['name'])
+            results['details'].append({
+                'operation': 'delete_optimization_profile',
+                'name': profile_delete['name'],
                 'success': success,
                 'message': message
             })
