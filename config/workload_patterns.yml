@@ -16,14 +16,7 @@ patterns:
     description: I/O heavy operations like backup and file operations
     process_patterns:
     - find.*
-  ai_ml_workload:
-    description: AI/ML Workloads
-    process_patterns:
-    - python.*tensorflow.*
-  ai_ml_workloavgvdgdgd:
-    description: AI/ML Workloads
-    process_patterns:
-    - python.*tensorflow.*
+  
 fallback_thresholds:
   cpu_intensive:
     cpu_percent: 80

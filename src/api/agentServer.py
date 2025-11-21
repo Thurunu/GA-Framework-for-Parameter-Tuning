@@ -207,7 +207,7 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                     "endpoints": {
                         "GET /health": "Health check",
                         "GET /status": "JSON status and metrics",
-                        "GET /metrics": "Prometheus format metrics",
+                        "GET /metrics": "metrics",
                         "GET /info": "System information",
                         "GET /workloads": "Current workload information and available workload types",
                         "GET /parameters": "Current optimized kernel parameters and optimization status",
@@ -246,12 +246,22 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                 }
                 self.send_json_response(response)
 
-            # format metrics
-            elif path == '/metrics':
-                metrics = self.collect_current_metrics()
-                system_info = self.collect_system_info()
-                prometheus_text = self.format_metrics(metrics, system_info)
-                self.send_text_response(prometheus_text)
+            # Get optimization profile data
+            elif path == '/optimization-profile':
+                profiles = self.data_store.get_optmization_profiles()
+                json_ready = {
+                    key: {
+                        "workload_type": p.workload_type,
+                        "parameter_bounds": p.parameter_bounds,
+                        "strategy": p.strategy.value,
+                        "evaluation_budget": p.evaluation_budget,
+                        "time_budget": p.time_budget,
+                        "performance_weights": p.performance_weights
+                    }
+                    for key, p in profiles.items()
+                }
+
+                self.send_json_response(json_ready)
 
             # Current metrics only
             elif path == '/metrics/current':
@@ -307,10 +317,7 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                 }
                 self.send_json_response(response)
             
-            # All data from central data store
-            elif path == '/data':
-                all_data = self.data_store.get_all_data()
-                self.send_json_response(all_data)
+            
 
             # 404 - Not found
             else:
@@ -454,7 +461,7 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                 
                 config_mgr = get_config_manager()
                 current_config = config_mgr.get_current_configurations()
-                
+                print(f"🌍 Setting up current parameters: {json.dumps(current_config, indent=2)}")
                 # Optionally report to master
                 if self.reporter and request_data.get('report_to_master', False):
                     self.reporter.report_current_configuration(current_config)

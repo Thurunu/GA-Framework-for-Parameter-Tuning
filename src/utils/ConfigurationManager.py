@@ -692,15 +692,14 @@ class ConfigurationManager:
                     'update_parameters': [{'name': '...', 'updates': {...}}, ...],
                     'add_workloads': [{'name': '...', 'config': {...}}, ...],
                     'update_workloads': [{'name': '...', 'updates': {...}}, ...],
-                    'add_optimization_profiles': [{'name': '...', 'config': {...}}, ...],
-                    'update_optimization_profiles': [{'name': '...', 'updates': {...}}, ...],
-                    'delete_optimization_profiles': [{'name': '...'}, ...],
                     'apply_to_system': [{'param': '...', 'value': ...}, ...]
                 }
 
         Returns:
             Results dictionary with success/failure for each operation
         """
+        print("❤️❤️❤️❤️")
+        print(updates)
         results = {
             'timestamp': datetime.now().isoformat(),
             'total_operations': 0,
@@ -761,51 +760,6 @@ class ConfigurationManager:
             results['details'].append({
                 'operation': 'update_workload',
                 'name': workload_update['name'],
-                'success': success,
-                'message': message
-            })
-            if success:
-                results['successful'] += 1
-            else:
-                results['failed'] += 1
-
-        # Add new optimization profiles
-        for profile_update in updates.get('add_optimization_profiles', []):
-            results['total_operations'] += 1
-            success, message = self.add_new_optimization_profile(profile_update['name'], profile_update['config'])
-            results['details'].append({
-                'operation': 'add_optimization_profile',
-                'name': profile_update['name'],
-                'success': success,
-                'message': message
-            })
-            if success:
-                results['successful'] += 1
-            else:
-                results['failed'] += 1
-
-        # Update existing optimization profiles
-        for profile_update in updates.get('update_optimization_profiles', []):
-            results['total_operations'] += 1
-            success, message = self.update_optimization_profile(profile_update['name'], profile_update['updates'])
-            results['details'].append({
-                'operation': 'update_optimization_profile',
-                'name': profile_update['name'],
-                'success': success,
-                'message': message
-            })
-            if success:
-                results['successful'] += 1
-            else:
-                results['failed'] += 1
-
-        # Delete optimization profiles
-        for profile_delete in updates.get('delete_optimization_profiles', []):
-            results['total_operations'] += 1
-            success, message = self.delete_optimization_profile(profile_delete['name'])
-            results['details'].append({
-                'operation': 'delete_optimization_profile',
-                'name': profile_delete['name'],
                 'success': success,
                 'message': message
             })

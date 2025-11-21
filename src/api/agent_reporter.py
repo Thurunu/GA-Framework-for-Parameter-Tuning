@@ -308,77 +308,8 @@ class AgentReporter:
         except requests.exceptions.RequestException as e:
             logger.error(f"❌ Workload change report error: {e}")
             return False
-    
-    def report_optimization_progress(self, iteration: int, score: float, 
-                                    total_iterations: int = None) -> bool:
-        """
-        Report optimization progress in real-time
-        
-        Args:
-            iteration: Current iteration number
-            score: Current optimization score
-            total_iterations: Total planned iterations
-            
-        Returns:
-            True if report was sent successfully
-        """
-        try:
-            payload = {
-                "iteration": iteration,
-                "score": score,
-                "total_iterations": total_iterations,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            response = self.session.post(
-                f"{self.master_url}/api/agents/{self.agent_id}/optimization_progress",
-                json=payload,
-                timeout=5
-            )
-            
-            return response.status_code == 200
-                
-        except requests.exceptions.RequestException:
-            # Don't log errors for progress updates (too noisy)
-            return False
-    
-    def report_error(self, error_type: str, error_message: str, 
-                    severity: str = "error") -> bool:
-        """
-        Report an error or alert to master
-        
-        Args:
-            error_type: Type of error
-            error_message: Error details
-            severity: Severity level ('info', 'warning', 'error', 'critical')
-            
-        Returns:
-            True if report was sent successfully
-        """
-        try:
-            payload = {
-                "error_type": error_type,
-                "message": error_message,
-                "severity": severity,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            response = self.session.post(
-                f"{self.master_url}/api/agents/{self.agent_id}/error",
-                json=payload,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                logger.info(f"🚨 Error reported: {error_type}")
-                return True
-            else:
-                return False
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Error report failed: {e}")
-            return False
-    
+      
+   
     def post_optimized_parameters(self, workload_type: str, parameters: Dict[str, Any], 
                                   optimization_score: float = None, 
                                   optimization_time: float = None) -> bool:

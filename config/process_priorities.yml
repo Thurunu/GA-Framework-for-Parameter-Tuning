@@ -15,54 +15,21 @@ priority_mappings:
     priority_class: CRITICAL  # -20 (Highest - this is your main workload!)
     patterns:
       - "mysqld"
-      # - "postgres"
       - "redis"
-      # - "mongodb"
       - "sqlite"
       - "mariadb"
-      # - "elasticsearch"
       - "cassandra"
       - "memcached"
 
-  # web_server:
-  #   description: "Web servers and application servers"
-  #   priority_class: HIGH  # -10
-  #   patterns:
-  #     - "nginx"
-  #     - "apache"
-  #     - "httpd"
-  #     - "gunicorn"
-  #     - "uwsgi"
-  #     - "tomcat"
-  #     - "node"
-  #     - "npm"
+
 
   compute_intensive:
     description: "Compute-intensive applications and scientific computing"
     priority_class: NORMAL  # 0
     patterns:
       - "python.*numpy"
-      # - "python.*scipy"
-      # - "matlab"
-      # - "R "
-      # - "tensorflow"
-      # - "pytorch"
-      # - "octave"
-      # - "mpirun"
 
-  # background_tasks:
-  #   description: "Background maintenance and batch tasks"
-  #   priority_class: BACKGROUND  # 19
-  #   patterns:
-  #     - "cron"
-  #     - "rsync"
-  #     - "backup"
-  #     - "updatedb"
-  #     - "logrotate"
-  #     - "anacron"
-  #     - "sync"
-  #     - "tar"
-  #     - "gzip"
+
 
   background_tasks:
     description: "Background maintenance and batch tasks (lowest priority)"
@@ -79,19 +46,7 @@ priority_mappings:
       - "bzip2"
       - "xz"
 
-  # interactive:
-  #   description: "Interactive user applications"
-  #   priority_class: HIGH  # -10
-  #   patterns:
-  #     - "firefox"
-  #     - "chrome"
-  #     - "chromium"
-  #     - "vim"
-  #     - "emacs"
-  #     - "code"
-  #     - "atom"
-  #     - "sublime"
-  #     - "vscode"
+
 
   system_critical:
     description: "Critical system processes (supporting services)"
@@ -104,28 +59,13 @@ priority_mappings:
       - "sshd"
       - "dbus"
 
-  # media_processing:
-  #   description: "Media encoding and processing"
-  #   priority_class: LOW  # 10
-  #   patterns:
-  #     - "ffmpeg"
-  #     - "mencoder"
-  #     - "handbrake"
-  #     - "blender"
-  #     - "gimp"
+
 
   compilation:
     description: "Software compilation and build processes"
     priority_class: LOW  # 10
     patterns:
-      # - "gcc"
-      # - "g++"
-      # - "clang"
-      # - "make"
-      # - "cmake"
-      # - "cargo"
-      # - "rustc"
-      # - "javac"
+
       - "python3"
 
 # Workload-specific priority boosts

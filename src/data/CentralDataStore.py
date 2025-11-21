@@ -124,6 +124,11 @@ class CentralDataStore:
         """Store optimization profiles (all available workload types)"""
         with self._data_lock:
             self._optimization_profiles = profiles.copy()
+
+    def get_optmization_profiles(self) -> Dict[str, Any]:
+        """Get all optimization profiles"""
+        with self._data_lock:
+            return self._optimization_profiles.copy()
     
     def get_available_workload_types(self) -> List[str]:
         """Get list of all available workload types that the system can handle"""
