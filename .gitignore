@@ -17,3 +17,4 @@ tests/
 *.md
 docker/
 run.sh
+*.json

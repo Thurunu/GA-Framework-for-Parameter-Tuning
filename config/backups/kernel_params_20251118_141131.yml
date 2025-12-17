@@ -1,0 +1,161 @@
+# Kernel Parameter Definitions
+# Defines all kernel parameters that can be optimized by the framework
+
+parameters:
+  # ============================================================================
+  # Memory Management Parameters
+  # ============================================================================
+  vm.swappiness:
+    default_value: 60
+    min_value: 0
+    max_value: 200
+    description: "Controls swap usage tendency"
+    subsystem: "memory"
+    writable: true
+    requires_reboot: false
+
+  vm.dirty_ratio:
+    default_value: 20
+    min_value: 1
+    max_value: 90
+    description: "Percentage of memory that can be dirty before writeback"
+    subsystem: "memory"
+    writable: true
+    requires_reboot: false
+
+  vm.dirty_background_ratio:
+    default_value: 10
+    min_value: 1
+    max_value: 50
+    description: "Percentage for background writeback"
+    subsystem: "memory"
+    writable: true
+    requires_reboot: false
+
+  vm.vfs_cache_pressure:
+    default_value: 100
+    min_value: 1
+    max_value: 1000
+    description: "Controls VFS cache reclaim pressure"
+    subsystem: "memory"
+    writable: true
+    requires_reboot: false
+
+  # ============================================================================
+  # CPU Scheduling Parameters (EEVDF-compatible for kernel 6.6+)
+  # ============================================================================
+
+  # 	/proc/sys/kernel/sched_cfs_bandwidth_slice_us (default=5ms)
+  kernel.sched_cfs_bandwidth_slice_us:
+    default_value: 5000      # 5ms
+    min_value: 1000          # 1ms
+    max_value: 40000         # 40ms
+    description: "CFS bandwidth time slice in microseconds (EEVDF scheduler)"
+    subsystem: "cpu"
+    writable: true
+    requires_reboot: false
+
+  # kernel.sched_latency_ns:
+    # default_value: 6000000   # 6ms
+    # min_value: 1000000       # 1ms
+    # max_value: 50000000      # 50ms
+    # description: "Target preemption latency for CPU-bound tasks"
+    # subsystem: "cpu"
+    # writable: true
+    # requires_reboot: false
+
+  kernel.sched_rt_period_us:
+    default_value: 1000000   # 1 second
+    min_value: 1
+    max_value: 10000000      # 10 seconds
+    description: "Period over which RT task bandwidth is measured"
+    subsystem: "cpu"
+    writable: true
+    requires_reboot: false
+
+  kernel.sched_rt_runtime_us:
+    default_value: 950000    # 950ms (95% of period)
+    min_value: 0
+    max_value: 1000000       # 1 second
+    description: "Portion of period that RT tasks can use"
+    subsystem: "cpu"
+    writable: true
+    requires_reboot: false
+
+  # ============================================================================
+  # Network Parameters
+  # ============================================================================
+  net.core.rmem_max:
+    default_value: 212992
+    min_value: 8192
+    max_value: 134217728     # 128MB
+    description: "Maximum receive buffer size"
+    subsystem: "network"
+    writable: true
+    requires_reboot: false
+
+  net.core.wmem_max:
+    default_value: 212992
+    min_value: 8192
+    max_value: 134217728     # 128MB
+    description: "Maximum send buffer size"
+    subsystem: "network"
+    writable: true
+    requires_reboot: false
+
+  net.core.netdev_max_backlog:
+    default_value: 1000
+    min_value: 100
+    max_value: 10000
+    description: "Maximum packets in network device queue"
+    subsystem: "network"
+    writable: true
+    requires_reboot: false
+
+  net.ipv4.tcp_rmem:
+    default_value: "4096 87380 6291456"
+    min_value: null
+    max_value: null
+    description: "TCP receive buffer sizes (min default max)"
+    subsystem: "network"
+    writable: true
+    requires_reboot: false
+
+  net.ipv4.tcp_wmem:
+    default_value: "4096 16384 4194304"
+    min_value: null
+    max_value: null
+    description: "TCP send buffer sizes (min default max)"
+    subsystem: "network"
+    writable: true
+    requires_reboot: false
+
+  net.ipv4.tcp_congestion_control:
+    default_value: "cubic"
+    min_value: null
+    max_value: null
+    description: "TCP congestion control algorithm"
+    subsystem: "network"
+    writable: true
+    requires_reboot: false
+
+  # ============================================================================
+  # File System Parameters
+  # ============================================================================
+  fs.file-max:
+    default_value: 2097152
+    min_value: 1024
+    max_value: 10485760
+    description: "Maximum number of file handles"
+    subsystem: "filesystem"
+    writable: true
+    requires_reboot: false
+
+  fs.nr_open:
+    default_value: 1048576
+    min_value: 1024
+    max_value: 10485760
+    description: "Maximum file descriptors per process"
+    subsystem: "filesystem"
+    writable: true
+    requires_reboot: false

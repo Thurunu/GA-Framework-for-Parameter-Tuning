@@ -2,10 +2,8 @@ profiles:
   database:
     workload_type: database
     strategy: HYBRID_SEQUENTIAL
-
     evaluation_budget: 15
     time_budget: 180.0
-
     parameter_bounds:
       vm.swappiness:
       - 1
@@ -36,7 +34,6 @@ profiles:
     evaluation_budget: 12
     time_budget: 150.0
     parameter_bounds:
-
       vm.swappiness:
       - 10
       - 60
@@ -52,7 +49,6 @@ profiles:
       kernel.sched_cfs_bandwidth_slice_us:
       - 3000
       - 8000
-
     performance_weights:
       cpu_efficiency: 0.3
       memory_efficiency: 0.2
@@ -144,4 +140,20 @@ profiles:
       memory_efficiency: 0.25
       io_throughput: 0.25
       network_throughput: 0.25
-  
+  fsfbgsdfsd:
+    workload_type: web_server
+    strategy: ADAPTIVE
+    evaluation_budget: 10
+    time_budget: 135.0
+    parameter_bounds:
+      vm.swap_2:
+      - 1100
+      - 2300
+      test:
+      - 25
+      - 120
+    performance_weights:
+      cpu_efficiency: 0.25
+      memory_efficiency: 0.25
+      io_throughput: 0.25
+      network_throughput: 0.25

@@ -1,0 +1,31 @@
+patterns:
+  database:
+    description: Database servers and cache systems
+    process_patterns:
+    - mysql.*
+    - redis.*
+    - memcached.*
+    - cassandra.*
+    - sqlite.*
+    - mariadb.*
+  compilation:
+    description: Software compilation and build processes
+    process_patterns:
+    - python3.*
+  io_intensive:
+    description: I/O heavy operations like backup and file operations
+    process_patterns:
+    - find.*
+  ai_ml_workload:
+    description: AI/ML Workloads
+    process_patterns:
+    - python.*tensorflow.*
+fallback_thresholds:
+  cpu_intensive:
+    cpu_percent: 80
+  memory_intensive:
+    memory_percent: 50
+  io_intensive:
+    io_bytes_per_second: 1000000
+  network_intensive:
+    connection_count: 10

@@ -2,7 +2,6 @@ patterns:
   database:
     description: Database servers and cache systems
     process_patterns:
-
     - mysql.*
     - redis.*
     - memcached.*
@@ -17,7 +16,7 @@ patterns:
     description: Web servers and HTTP services
     process_patterns:
     - nginx.*
-    - apache2.*
+    - apache.*
     - httpd.*
     - node.*
     - gunicorn.*
@@ -68,5 +67,4 @@ patterns:
       cpu_percent: 50
       memory_percent: 50
       io_bytes_per_second: 100000
- 
-
+  

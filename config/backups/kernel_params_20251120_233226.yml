@@ -119,4 +119,11 @@ parameters:
     subsystem: filesystem
     writable: true
     requires_reboot: false
-
+  vm.swap:
+    default_value: 1000
+    min_value: 250
+    max_value: 500
+    description: test paramaeter
+    subsystem: database
+    writable: true
+    requires_reboot: false
