@@ -90,14 +90,11 @@ class AgentReporter:
             True if authentication is valid, False otherwise
         """
         try:
-            # Pass API key both as query param and header for compatibility
+            # Send agent_id as query param, API key via header
             response = self.session.get(
                 f"{self.master_url}/api/agents/validate",
-                params={
-                    "agent_id": self.agent_id,
-                    "x_api_key": self.api_key  # API key as query parameter
-                },
-                headers={"X-API-Key": self.api_key},  # Also as header
+                params={"agent_id": self.agent_id},
+                headers={"X-API-Key": self.api_key},
                 timeout=5
             )
             
@@ -132,59 +129,71 @@ class AgentReporter:
         Returns:
             True if registration successful, False otherwise
         """
-        # First validate authentication before attempting registration
-        if not self.validate_authentication():
-            logger.error("❌ Authentication validation failed. Cannot register agent.")
-            print("❌ Authentication validation failed. Please check your API key and agent ID.")
+        # Note: For first-time registration, we don't validate since the agent doesn't exist yet
+        # The master API key is used for registration, then the agent gets its own unique key
         
-            try:
-                system_info = self.get_system_info()
-                
-                payload = {
-                    "agent_id": self.agent_id,
-                    "hostname": system_info["hostname"],
-                    "ip_address": system_info["ip_address"],
-                    "version": version,
-                    "metadata": {
-                        **system_info,
-                        **(metadata or {})
-                    }
+        try:
+            system_info = self.get_system_info()
+            
+            payload = {
+                "agent_id": self.agent_id,
+                "hostname": system_info["hostname"],
+                "ip_address": system_info["ip_address"],
+                "version": version,
+                "metadata": {
+                    **system_info,
+                    **(metadata or {})
                 }
-                print("Registering agent with payload:", json.dumps(payload, indent=2))
+            }
+            print("🚀 Registering agent with payload:", json.dumps(payload, indent=2))
+            print(f"🔑 Using API key: {self.api_key[:20]}...")
+            
+            # Send registration request with API key in header
+            headers = {
+                "X-API-Key": self.api_key,
+                "Content-Type": "application/json"
+            }
+
+            response = self.session.post(
+                f"{self.master_url}/api/agents/register",
+                json=payload,
+                headers=headers,
+                timeout=10
+            )
+            
+            print(f"🔍 Registration request URL: {response.url}")
+            print(f"📡 Response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.registered = True
                 
-                # Send agent_id and x_api_key as query parameters like validation endpoint
-                response = self.session.post(
-                    f"{self.master_url}/api/agents/register",
-                    params={
-                        "agent_id": self.agent_id,
-                        "x_api_key": self.api_key
-                    },
-                    json=payload,
-                    timeout=10
-                )
+                # IMPORTANT: Save the agent-specific API key returned by the server
+                if 'api_key' in data:
+                    old_key = self.api_key
+                    self.api_key = data['api_key']
+                    self.session.headers.update({'X-API-Key': self.api_key})
+                    logger.info(f"✅ Received agent-specific API key from server")
+                    print(f"✅ Updated API key from master key to agent-specific key")
                 
-                print(f"🔍 Registration request: {response.url}")
-                print(f"📡 Response status: {response.status_code}")
+                logger.info(f"✅ Agent registered successfully: {self.agent_id}")
+                print(f"✅ Agent registered successfully: {self.agent_id}")
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    self.registered = True
-                    logger.info(f"✅ Agent registered successfully: {self.agent_id}")
-                    print(f"✅ Agent registered successfully: {self.agent_id}")
-                    
-                    # Store any configuration returned by master
-                    if 'config' in data:
-                        self.config = data['config']
-                    
-                    return True
-                else:
-                    logger.error(f"❌ Registration failed: {response.status_code} - {response.text}")
-                    return False
-                    
-            except requests.exceptions.RequestException as e:
-                logger.error(f"❌ Registration error: {e}")
+                # Store any configuration returned by master
+                if 'config' in data:
+                    self.config = data['config']
+                
+                return True
+            else:
+                logger.error(f"❌ Registration failed: {response.status_code} - {response.text}")
+                print(f"❌ Registration failed: {response.status_code}")
+                print(f"Response: {response.text}")
                 return False
-        logger.info("✅ Authentication validated. Proceeding with registration...")
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Registration error: {e}")
+            print(f"❌ Registration error: {e}")
+            return False
     
     def set_heartbeat(self, metrics: Dict, workload_type: str = None, 
                       optimization_score: float = None) -> Dict:

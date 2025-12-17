@@ -205,6 +205,144 @@ class LoadConfigs:
             return {}
 
     # =====================================================
+    # VALIDATION LAYER (Phase 2)
+    # =====================================================
+    
+    def validate_optimization_profile(self, profile_name: str, profile_data: Dict, 
+                                     kernel_params: Dict, workload_patterns: Dict) -> tuple[bool, list]:
+        """
+        Validate an optimization profile for referential integrity
+        
+        Args:
+            profile_name: Name of the profile
+            profile_data: Profile configuration data
+            kernel_params: Available kernel parameters
+            workload_patterns: Available workload patterns
+            
+        Returns:
+            (is_valid, list_of_errors)
+        """
+        errors = []
+        
+        # Check 1: Workload type must exist in workload_patterns
+        workload_type = profile_data.get('workload_type')
+        if workload_type not in workload_patterns.get('patterns', {}):
+            errors.append(f"Profile '{profile_name}': workload_type '{workload_type}' not found in workload_patterns.yml")
+        
+        # Check 2: All parameters must exist in kernel_parameters
+        param_bounds = profile_data.get('parameter_bounds', {})
+        for param_name in param_bounds.keys():
+            if param_name not in kernel_params.get('parameters', {}):
+                errors.append(f"Profile '{profile_name}': parameter '{param_name}' not found in kernel_parameters.yml")
+        
+        return (len(errors) == 0, errors)
+    
+    def validate_process_priority(self, priority_name: str, priority_data: Dict,
+                                  workload_patterns: Dict) -> tuple[bool, list]:
+        """
+        Validate a process priority mapping for referential integrity
+        
+        Args:
+            priority_name: Name of the priority mapping
+            priority_data: Priority configuration data
+            workload_patterns: Available workload patterns
+            
+        Returns:
+            (is_valid, list_of_errors)
+        """
+        errors = []
+        
+        # Check: If priority mapping references a workload type (not system_critical or background_tasks),
+        # it must exist in workload_patterns
+        # Exception: system_critical and background_tasks have their own patterns
+        special_priorities = ['system_critical', 'background_tasks']
+        
+        if priority_name not in special_priorities:
+            if priority_name not in workload_patterns.get('patterns', {}):
+                # Only add patterns field if this is a special priority
+                if 'patterns' not in priority_data:
+                    errors.append(f"Priority '{priority_name}': must reference a workload type in workload_patterns.yml or define its own patterns")
+        
+        return (len(errors) == 0, errors)
+    
+    def validate_all_configs(self) -> Dict[str, Any]:
+        """
+        Load and validate all configurations for referential integrity
+        
+        Returns:
+            Dictionary with validation results:
+            {
+                'valid': bool,
+                'errors': list,
+                'warnings': list,
+                'configs': dict (if valid)
+            }
+        """
+        errors = []
+        warnings = []
+        
+        # Load all configs
+        kernel_params = None
+        workload_patterns = None
+        optimization_profiles = None
+        process_priorities = None
+        
+        try:
+            # Load base configs first
+            with open(self.kernel_params_file, 'r', encoding='utf-8') as f:
+                kernel_params = yaml.safe_load(f)
+            
+            with open(self.workload_patterns_file, 'r', encoding='utf-8') as f:
+                workload_patterns = yaml.safe_load(f)
+            
+            with open(self.optimization_profiles_file, 'r', encoding='utf-8') as f:
+                optimization_profiles = yaml.safe_load(f)
+            
+            with open(self.process_priorities_file, 'r', encoding='utf-8') as f:
+                process_priorities = yaml.safe_load(f)
+        
+        except Exception as e:
+            errors.append(f"Failed to load configuration files: {e}")
+            return {'valid': False, 'errors': errors, 'warnings': warnings}
+        
+        # Validate optimization profiles
+        for profile_name, profile_data in optimization_profiles.get('profiles', {}).items():
+            is_valid, profile_errors = self.validate_optimization_profile(
+                profile_name, profile_data, kernel_params, workload_patterns
+            )
+            errors.extend(profile_errors)
+        
+        # Validate process priorities
+        for priority_name, priority_data in process_priorities.get('priority_mappings', {}).items():
+            is_valid, priority_errors = self.validate_process_priority(
+                priority_name, priority_data, workload_patterns
+            )
+            errors.extend(priority_errors)
+        
+        # Check for orphaned workload patterns (patterns defined but not used)
+        used_workload_types = set()
+        for profile_data in optimization_profiles.get('profiles', {}).values():
+            used_workload_types.add(profile_data.get('workload_type'))
+        
+        defined_workload_types = set(workload_patterns.get('patterns', {}).keys())
+        orphaned = defined_workload_types - used_workload_types
+        
+        if orphaned:
+            warnings.append(f"Workload patterns defined but not used in optimization profiles: {orphaned}")
+        
+        return {
+            'valid': len(errors) == 0,
+            'errors': errors,
+            'warnings': warnings,
+            'configs': {
+                'kernel_parameters': kernel_params,
+                'workload_patterns': workload_patterns,
+                'optimization_profiles': optimization_profiles,
+                'process_priorities': process_priorities
+            } if len(errors) == 0 else None
+        }
+    
+    # =====================================================
     # LOAD ALL CONFIGS
     # =====================================================
     

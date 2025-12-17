@@ -212,7 +212,11 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                         "GET /workloads": "Current workload information and available workload types",
                         "GET /parameters": "Current optimized kernel parameters and optimization status",
                         "GET /data": "All central data store information",
-                        "POST /workload/parameters": "Get parameters and ranges for a specific workload type (requires: workload_type)"
+                        "POST /workload/parameters": "Get parameters and ranges for a specific workload type (requires: workload_type)",
+                        "POST /config/update": "Apply batch configuration updates from centralized management",
+                        "POST /config/validate": "Validate all configurations for referential integrity",
+                        "POST /config/current": "Get current configuration state",
+                        "POST /config/reload": "Reload all configurations from disk"
                     }
                 }
                 self.send_json_response(response)
@@ -316,6 +320,42 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                     "timestamp": datetime.now().isoformat()
                 }
                 self.send_json_response(response)
+
+            # Get current configuration (GET) - supports optional reporting via query param
+            elif path == '/config/current':
+                """
+                Return current configuration state via GET.
+                Use query param `report_to_master=true` to request reporting to master.
+                """
+                from ConfigurationManager import get_config_manager
+
+                # Parse query params for reporting flag
+                query = parse_qs(parsed_path.query)
+                report_flag = query.get('report_to_master', ['false'])[0].lower()
+                report_to_master = report_flag in ('1', 'true', 'yes')
+
+                config_mgr = get_config_manager()
+                current_config = config_mgr.get_current_configurations()
+                print(f"🌍 Setting up current parameters (GET): {json.dumps(current_config, indent=2)}")
+
+                ack_status = None
+                if self.reporter and report_to_master:
+                    try:
+                        sent = self.reporter.report_current_configuration(current_config)
+                        ack_status = 'sent' if sent else 'failed'
+                        if not sent:
+                            logger.warning("Failed to report current configuration to master (non-exception)")
+                    except Exception as e:
+                        logger.exception("Exception while reporting current configuration to master: %s", e)
+                        ack_status = 'error'
+
+                response = {
+                    "configuration": current_config,
+                    "timestamp": datetime.now().isoformat(),
+                    "report_acknowledgement": ack_status
+                }
+
+                self.send_json_response(response)
             
             
 
@@ -408,6 +448,9 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                         "update_parameters": [...],
                         "add_workloads": [...],
                         "update_workloads": [...],
+                        "add_optimization_profiles": [...],
+                        "update_optimization_profiles": [...],
+                        "delete_optimization_profiles": [...],
                         "apply_to_system": [...]
                     }
                 }
@@ -426,6 +469,7 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                 
                 # Get configuration manager
                 config_mgr = get_config_manager()
+                print(f"🔄 Applying configuration update: {update_id}")
                 
                 # Apply batch updates
                 results = config_mgr.apply_batch_update(updates)
@@ -452,26 +496,55 @@ class AgentMetricsHandler(BaseHTTPRequestHandler):
                 
                 self.send_json_response(response)
             
-            # NEW: Get current configuration endpoint
-            elif path == '/config/current':
+            # NEW: Validate configurations endpoint
+            elif path == '/config/validate':
                 """
-                Return current configuration state
+                Validate all configurations for referential integrity
+                Returns validation results with errors and warnings
                 """
                 from ConfigurationManager import get_config_manager
                 
                 config_mgr = get_config_manager()
-                current_config = config_mgr.get_current_configurations()
-                print(f"🌍 Setting up current parameters: {json.dumps(current_config, indent=2)}")
-                # Optionally report to master
-                if self.reporter and request_data.get('report_to_master', False):
-                    self.reporter.report_current_configuration(current_config)
+                validation_results = config_mgr.validate_configurations()
                 
                 response = {
-                    "configuration": current_config,
+                    "validation": validation_results,
                     "timestamp": datetime.now().isoformat()
                 }
                 
-                self.send_json_response(response)
+                status_code = 200 if validation_results['valid'] else 422
+                self.send_json_response(response, status_code=status_code)
+            
+            # NEW: Get current configuration endpoint
+            # elif path == '/config/current':
+            #     """
+            #     Return current configuration state
+            #     """
+            #     from ConfigurationManager import get_config_manager
+                
+            #     config_mgr = get_config_manager()
+            #     current_config = config_mgr.get_current_configurations()
+            #     print(f"🌍 Setting up current parameters: {json.dumps(current_config, indent=2)}")
+            #     # Optionally report to master (safe, non-blocking handling)
+            #     ack_status = None
+            #     if self.reporter and request_data.get('report_to_master', False):
+            #         try:
+            #             sent = self.reporter.report_current_configuration(current_config)
+            #             ack_status = 'sent' if sent else 'failed'
+            #             if not sent:
+            #                 logger.warning("Failed to report current configuration to master (non-exception)")
+            #         except Exception as e:
+            #             # Log exception and return ack status so caller can see failure
+            #             logger.exception(f"Exception while reporting current configuration to master: {e}")
+            #             ack_status = 'error'
+
+            #     response = {
+            #         "configuration": current_config,
+            #         "timestamp": datetime.now().isoformat(),
+            #         "report_acknowledgement": ack_status
+            #     }
+
+            #     self.send_json_response(response)
             
             # NEW: Reload configurations endpoint
             elif path == '/config/reload':

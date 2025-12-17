@@ -2,69 +2,73 @@ patterns:
   database:
     description: Database servers and cache systems
     process_patterns:
-    - mysql.*
-    - redis.*
-    - memcached.*
-    - cassandra.*
-    - sqlite.*
-    - mariadb.*
+      - mysql.*
+      - redis.*
+      - memcached.*
+      - cassandra.*
+      - sqlite.*
+      - mariadb.*
     fallback_thresholds:
       cpu_percent: 70
       memory_percent: 60
       io_bytes_per_second: 500000
+  
   web_server:
     description: Web servers and HTTP services
     process_patterns:
-    - nginx.*
-    - apache2.*
-    - httpd.*
-    - node.*
-    - gunicorn.*
+      - nginx.*
+      - apache.*
+      - httpd.*
+      - node.*
+      - gunicorn.*
     fallback_thresholds:
       cpu_percent: 60
       memory_percent: 50
       network_throughput: 10000000
+  
   hpc_compute:
     description: High-performance computing and scientific workloads
     process_patterns:
-    - python.*numpy.*
-    - python.*scipy.*
-    - matlab.*
-    - octave.*
-    - fortran.*
+      - python.*numpy.*
+      - python.*scipy.*
+      - matlab.*
+      - octave.*
+      - fortran.*
     fallback_thresholds:
       cpu_percent: 90
       memory_percent: 80
+  
   compilation:
     description: Software compilation and build processes
     process_patterns:
-    - python3.*
-    - gcc.*
-    - g\+\+.*
-    - make.*
-    - cmake.*
-    - javac.*
+      - python3.*
+      - gcc.*
+      - g\+\+.*
+      - make.*
+      - cmake.*
+      - javac.*
     fallback_thresholds:
       cpu_percent: 80
       memory_percent: 70
       io_bytes_per_second: 300000
+  
   io_intensive:
     description: I/O heavy operations like backup and file operations
     process_patterns:
-    - find.*
-    - rsync.*
-    - tar.*
-    - backup.*
-    - dd.*
+      - find.*
+      - rsync.*
+      - tar.*
+      - backup.*
+      - dd.*
     fallback_thresholds:
       cpu_percent: 40
       io_bytes_per_second: 1000000
+  
   general:
     description: General purpose workload (fallback)
     process_patterns:
-    - .*
+      - .*
     fallback_thresholds:
       cpu_percent: 50
       memory_percent: 50
       io_bytes_per_second: 100000
- 

@@ -16,7 +16,7 @@ patterns:
     description: Web servers and HTTP services
     process_patterns:
     - nginx.*
-    - apache2.*
+    - apache.*
     - httpd.*
     - node.*
     - gunicorn.*
@@ -67,4 +67,48 @@ patterns:
       cpu_percent: 50
       memory_percent: 50
       io_bytes_per_second: 100000
- 
+  test_1:
+    description: check this
+    process_patterns:
+    - test
+    - test
+    - test
+    - test
+    fallback_thresholds:
+      memory_percent: 23
+      cpu_percent: 32
+  test2:
+    description: 'teertrtfgw rter  r t er t    '
+    process_patterns:
+    - eqre
+    - fehth
+    - trytr
+    - rtutry
+    fallback_thresholds:
+      cpu_percent: 12
+      memory_percent: 35
+  wfwefew:
+    description: tertretertertrtrtrter
+    process_patterns:
+    - gwerttw
+    - fherhger
+    - trytry
+    fallback_thresholds:
+      io_throughput: 44444
+  jhhhhh:
+    description: hyryehthtrytrtr
+    process_patterns:
+    - gfgh
+    - fdgh
+    - ferhy
+    - fgjurtj
+    fallback_thresholds:
+      cpu_percent: 12
+  fherger:
+    description: sderyeryeyettttrtretertretertreterter
+    process_patterns:
+    - ftwrt
+    - ghtj
+    - dhty
+    fallback_thresholds:
+      memory_percent: 23

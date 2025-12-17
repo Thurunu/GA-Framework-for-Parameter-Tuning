@@ -119,4 +119,11 @@ parameters:
     subsystem: filesystem
     writable: true
     requires_reboot: false
-
+  vm.swap:
+    default_value: 323232
+    min_value: 50
+    max_value: 100
+    description: cjvbdwfbefbdkufhbeoufbroufbdkughbwegouerhbfeofuhfbewougyewogweboigberoguueygwoeugeroufuherougubweoiguurroiffewoifbeoufbeofbegouyubgweou
+    subsystem: network
+    writable: true
+    requires_reboot: false

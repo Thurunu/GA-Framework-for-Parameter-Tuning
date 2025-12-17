@@ -1,0 +1,94 @@
+# Workload Pattern Definitions
+# These patterns are used to classify running processes into workload types
+
+patterns:
+  database:
+    description: "Database servers and cache systems"
+    process_patterns:
+      - 'mysql.*'
+      # - 'postgres.*'
+      # - 'oracle.*'
+      # - 'mongodb.*'
+      - 'redis.*'
+      - 'memcached.*'
+      - 'cassandra.*'
+      - 'sqlite.*'
+      - 'mariadb.*'
+      # - 'elasticsearch.*'
+    
+  # web_server:
+  #   description: "Web servers and application servers"
+  #   process_patterns:
+  #     - 'nginx.*'
+  #     - 'apache.*'
+  #     - 'httpd.*'
+  #     - 'lighttpd.*'
+  #     - 'tomcat.*'
+  #     - 'jetty.*'
+  #     - 'gunicorn.*'
+  #     - 'uwsgi.*'
+  #     - 'node.*'
+  #     - 'npm.*'
+    
+  # hpc_compute:
+  #   description: "High-performance computing and scientific workloads"
+  #   process_patterns:
+  #     - 'matlab.*'
+  #     - 'python.*scipy.*'
+  #     - 'R.*'
+  #     - 'octave.*'
+  #     - 'mpirun.*'
+  #     - '.*scientific.*'
+  #     - '.*simulation.*'
+  #     - 'python.*numpy.*'
+  #     - 'tensorflow.*'
+  #     - 'pytorch.*'
+    
+  # media_processing:
+  #   description: "Media encoding, decoding, and processing"
+  #   process_patterns:
+  #     - 'ffmpeg.*'
+  #     - 'mencoder.*'
+  #     - 'handbrake.*'
+  #     - 'blender.*'
+  #     - 'gimp.*'
+  #     - 'imagemagick.*'
+  #     - 'convert.*'
+  #     - 'vlc.*'
+    
+  compilation:
+    description: "Software compilation and build processes"
+    process_patterns:
+      # - 'gcc.*'
+      # - 'g\+\+.*'
+      # - 'clang.*'
+      # - 'make.*'
+      # - 'cmake.*'
+      # - 'rustc.*'
+      # - 'javac.*'
+      # - 'dotnet.*'
+      # - 'cargo.*'
+      # - 'mvn.*'
+      # - 'gradle.*'
+      - 'python3.*'
+    
+  io_intensive:
+    description: "I/O heavy operations like backup and file operations"
+    process_patterns:
+     
+      - 'find.*'
+
+# Fallback classification thresholds
+# Used when process doesn't match any pattern
+fallback_thresholds:
+  cpu_intensive:
+    cpu_percent: 80  # CPU usage > 80% → cpu_intensive
+  
+  memory_intensive:
+    memory_percent: 50  # Memory usage > 50% → memory_intensive
+  
+  io_intensive:
+    io_bytes_per_second: 1000000  # I/O > 1MB/s → io_intensive
+  
+  network_intensive:
+    connection_count: 10  # Connections > 10 → network_intensive

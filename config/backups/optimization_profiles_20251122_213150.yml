@@ -140,4 +140,20 @@ profiles:
       memory_efficiency: 0.25
       io_throughput: 0.25
       network_throughput: 0.25
-  
+  fsfbgsdfsd:
+    workload_type: web_server
+    strategy: ADAPTIVE
+    evaluation_budget: 10
+    time_budget: 135.0
+    parameter_bounds:
+      vm.swap_2:
+      - 1100
+      - 2300
+      test:
+      - 25
+      - 120
+    performance_weights:
+      cpu_efficiency: 0.25
+      memory_efficiency: 0.25
+      io_throughput: 0.25
+      network_throughput: 0.25

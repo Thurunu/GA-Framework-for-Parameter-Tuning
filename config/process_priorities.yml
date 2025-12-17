@@ -9,28 +9,50 @@
 # LOW: 10 (Low priority, batch processing)
 # BACKGROUND: 19 (Lowest priority, background tasks)
 
+# Process Priority Mappings
+# References workload types defined in workload_patterns.yml
+# No process patterns here - they come from workload_patterns.yml
+
 priority_mappings:
   database:
     description: "Database servers and data stores (HIGHEST PRIORITY)"
-    priority_class: CRITICAL  # -20 (Highest - this is your main workload!)
-    patterns:
-      - "mysqld"
-      - "redis"
-      - "sqlite"
-      - "mariadb"
-      - "cassandra"
-      - "memcached"
+    priority_class: CRITICAL  # -20 
 
+  
+  web_server:
+    description: "Web servers and HTTP services"
+    priority_class: HIGH  # -10
 
-
-  compute_intensive:
-    description: "Compute-intensive applications and scientific computing"
+  
+  hpc_compute:
+    description: "High-performance computing workloads"
     priority_class: NORMAL  # 0
+   
+  
+  compilation:
+    description: "Software compilation and build processes"
+    priority_class: LOW  # 10
+  
+  io_intensive:
+    description: "I/O heavy operations"
+    priority_class: LOW  # 10
+  
+  general:
+    description: "General purpose workload"
+    priority_class: NORMAL  # 0
+  
+  # Special system processes (not in workload_patterns)
+  system_critical:
+    description: "Critical system processes (supporting services)"
+    priority_class: HIGH  # -10
     patterns:
-      - "python.*numpy"
-
-
-
+      - "systemd"
+      - "kernel"
+      - "init"
+      - "ssh"
+      - "sshd"
+      - "dbus"
+  
   background_tasks:
     description: "Background maintenance and batch tasks (lowest priority)"
     priority_class: BACKGROUND  # 19
@@ -41,32 +63,6 @@ priority_mappings:
       - "updatedb"
       - "logrotate"
       - "anacron"
-      - "tar"
-      - "gzip"
-      - "bzip2"
-      - "xz"
-
-
-
-  system_critical:
-    description: "Critical system processes (supporting services)"
-    priority_class: HIGH  # -10 (High, but lower than database workload)
-    patterns:
-      - "systemd"
-      - "kernel"
-      - "init"
-      - "ssh"
-      - "sshd"
-      - "dbus"
-
-
-
-  compilation:
-    description: "Software compilation and build processes"
-    priority_class: LOW  # 10
-    patterns:
-
-      - "python3"
 
 # Workload-specific priority boosts
 # When a specific workload is detected as dominant, these boosts apply

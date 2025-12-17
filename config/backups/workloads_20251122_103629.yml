@@ -16,7 +16,7 @@ patterns:
     description: Web servers and HTTP services
     process_patterns:
     - nginx.*
-    - apache2.*
+    - apache.*
     - httpd.*
     - node.*
     - gunicorn.*
@@ -67,4 +67,26 @@ patterns:
       cpu_percent: 50
       memory_percent: 50
       io_bytes_per_second: 100000
- 
+  test 2:
+    description: qwigbweofgybwofhbeuofberufhh weowdifbwefybweuo
+    process_patterns:
+    - dfiuen
+    - fgedsgf
+    - wrwre
+    - rgr
+    - edsg
+  jmhxjhcg:
+    description: hjdkgfydhh  hfc ctcx jxgf
+    process_patterns:
+    - nvj
+    - err
+    - wrere
+    - hhfhf
+  test 5:
+    description: qwigbweofgybwofhbeuofberufhh weowdifbwefybweuo
+    process_patterns:
+    - dfiuen
+    - fgedsgf
+    - wrwre
+    - rgr
+    - edsg

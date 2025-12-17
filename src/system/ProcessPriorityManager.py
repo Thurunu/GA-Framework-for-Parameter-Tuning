@@ -52,9 +52,15 @@ class ProcessPriorityManager:
             self.logger.addHandler(handler)
         
         # Load priority configuration from YAML
-        self.workload_patterns = {}
         config_loader = LoadConfigs()
-        self.config = config_loader.load_process_priorities(config_file)
+        self.priority_config = config_loader.load_process_priorities(config_file)
+        
+        # Load workload patterns (Phase 3: Single source of truth)
+        self.workload_patterns_config = config_loader.load_workload_patterns()
+        
+        # Build combined workload patterns dictionary
+        # Format: {workload_type: {'patterns': [...], 'priority_class': '...'}}
+        self.workload_patterns = self._build_workload_patterns()
         
         # Track managed processes
         self.managed_processes: Dict[int, ProcessInfo] = {}
@@ -64,6 +70,53 @@ class ProcessPriorityManager:
         # Format: {pid: {'first_seen': timestamp, 'count': observation_count}}
         self.process_observations: Dict[int, Dict] = {}
         self.last_cleanup_time = time.time()
+    
+    def _build_workload_patterns(self) -> Dict[str, Dict]:
+        """
+        Build combined workload patterns from workload_patterns.yml and process_priorities.yml
+        
+        Phase 3: Process patterns come from workload_patterns.yml
+        Priority classes come from process_priorities.yml
+        Special system patterns (system_critical, background_tasks) have their own patterns
+        
+        Returns:
+            Dictionary: {workload_type: {'patterns': [...], 'priority_class': PriorityClass}}
+        """
+        combined = {}
+        
+        # Get priority mappings
+        priority_mappings = self.priority_config.get('priority_mappings', {})
+        
+        # Get workload patterns
+        workload_patterns = self.workload_patterns_config.get('patterns', {})
+        
+        for workload_type, priority_data in priority_mappings.items():
+            priority_class_str = priority_data.get('priority_class', 'NORMAL')
+            priority_class = PriorityClass[priority_class_str]
+            
+            # Check if this priority mapping has its own patterns (system_critical, background_tasks)
+            if 'patterns' in priority_data:
+                # Use patterns from priority config (special system processes)
+                combined[workload_type] = {
+                    'patterns': priority_data['patterns'],
+                    'priority_class': priority_class
+                }
+            else:
+                # Get patterns from workload_patterns.yml
+                if workload_type in workload_patterns:
+                    combined[workload_type] = {
+                        'patterns': workload_patterns[workload_type].get('process_patterns', []),
+                        'priority_class': priority_class
+                    }
+                else:
+                    self.logger.warning(f"Workload type '{workload_type}' not found in workload_patterns.yml")
+        
+        return combined
+    
+    def get_config(self) -> Dict:
+        """Get current priority configuration (for backward compatibility)"""
+        return self.priority_config
+
     
    
     
@@ -75,7 +128,7 @@ class ProcessPriorityManager:
         if current_time - self.last_cleanup_time < 60:  # Cleanup every 60 seconds
             return
         
-        stability_config = self.config.get('filter_rules', {}).get('stability_tracking', {})
+        stability_config = self.priority_config.get('filter_rules', {}).get('stability_tracking', {})
         observation_window = stability_config.get('observation_window', 30)
         
         # Remove observations older than the window
@@ -102,7 +155,7 @@ class ProcessPriorityManager:
         Returns:
             True if process is eligible for priority adjustment
         """
-        filter_rules = self.config.get('filter_rules', {})
+        filter_rules = self.priority_config.get('filter_rules', {})
         
         # Check minimum process age
         min_age = filter_rules.get('min_process_age', 5.0)
@@ -215,7 +268,7 @@ class ProcessPriorityManager:
         self._cleanup_old_observations()
         
         # Get filter rules from configuration
-        filter_rules = self.config.get('filter_rules', {})
+        filter_rules = self.priority_config.get('filter_rules', {})
         exclude_pids = filter_rules.get('exclude_pids', [0, 1, 2])
         exclude_prefixes = filter_rules.get('exclude_prefixes', ['[', 'kthreadd', 'ksoftirqd'])
         
@@ -294,12 +347,12 @@ class ProcessPriorityManager:
             'high_priority_set': 0,
             'low_priority_set': 0,
             'errors': 0,
-            'short_lived_filtered': len([p for p in self.process_observations.values() if p['count'] < self.config.get('filter_rules', {}).get('stability_tracking', {}).get('required_observations', 2)]),
+            'short_lived_filtered': len([p for p in self.process_observations.values() if p['count'] < self.priority_config.get('filter_rules', {}).get('stability_tracking', {}).get('required_observations', 2)]),
             'processes_tracked': len(self.process_observations)
         }
         
         # Get configuration values
-        boost_config = self.config.get('workload_focus_boost', {})
+        boost_config = self.priority_config.get('workload_focus_boost', {})
         boost_enabled = boost_config.get('enabled', True)
         boost_amount = boost_config.get('boost_amount', 5)
         max_priority = boost_config.get('max_priority', -20)

@@ -4,10 +4,10 @@
 
 set -e  # Exit on error
 
-PUBLIC_IP="${1}"
-PRIVATE_1_IP="${2}"
-PRIVATE_2_IP="${3}"
-MYSQL_PASSWORD="${4:-defaultPassword123}"
+PUBLIC_IP="65.2.180.161"
+PRIVATE_1_IP="13.127.66.112"
+PRIVATE_2_IP="65.2.131.133"
+MYSQL_PASSWORD="12345678"
 
 echo "🗄️  Installing and configuring MySQL Server..."
 echo "Allowed IPs: $PUBLIC_IP, $PRIVATE_1_IP, $PRIVATE_2_IP"

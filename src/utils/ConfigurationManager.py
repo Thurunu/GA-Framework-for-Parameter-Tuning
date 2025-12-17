@@ -4,6 +4,10 @@ Dynamic Configuration Manager
 Handles real-time configuration updates from central management server
 """
 
+from CentralDataStore import get_data_store
+from KernelParameterInterface import KernelParameterInterface
+from LoadConfigs import LoadConfigs
+from budget_calculator import BudgetCalculator
 import yaml
 import json
 import os
@@ -21,9 +25,6 @@ sys.path.insert(0, os.path.join(project_root, 'system'))
 sys.path.insert(0, os.path.join(project_root, 'workload'))
 sys.path.insert(0, os.path.join(project_root, 'data'))
 
-from LoadConfigs import LoadConfigs
-from KernelParameterInterface import KernelParameterInterface
-from CentralDataStore import get_data_store
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class ConfigurationManager:
         """
         if config_dir is None:
             config_dir = os.path.join(project_root, '..', 'config')
-        
+
         self.config_dir = Path(config_dir)
         self.backup_dir = self.config_dir / 'backups'
         self.backup_dir.mkdir(exist_ok=True)
@@ -77,7 +78,7 @@ class ConfigurationManager:
             Path to backup file
         """
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        
+
         config_files = {
             'kernel_params': self.kernel_params_file,
             'workloads': self.workload_patterns_file,
@@ -92,7 +93,7 @@ class ConfigurationManager:
 
         backup_file = self.backup_dir / f"{config_type}_{timestamp}.yml"
         shutil.copy2(source_file, backup_file)
-        
+
         logger.info(f"✅ Backup created: {backup_file}")
         return str(backup_file)
 
@@ -127,7 +128,8 @@ class ConfigurationManager:
                     logger.info(f"✅ Restored from backup: {backup_file}")
                     return True
 
-            logger.error(f"Could not determine config type from: {backup_file}")
+            logger.error(
+                f"Could not determine config type from: {backup_file}")
             return False
 
         except Exception as e:
@@ -169,7 +171,8 @@ class ConfigurationManager:
                 return False, f"Parameter '{param_name}' already exists. Use update_kernel_parameter instead."
 
             # Validate required fields
-            required_fields = ['default_value', 'min_value', 'max_value', 'description', 'subsystem']
+            required_fields = ['default_value', 'min_value',
+                               'max_value', 'description', 'subsystem']
             for field in required_fields:
                 if field not in param_config:
                     return False, f"Missing required field: {field}"
@@ -308,8 +311,9 @@ class ConfigurationManager:
         Args:
             workload_name: Name of workload (e.g., 'database', 'web_server')
             workload_config: Workload configuration dict with keys:
-                - description
-                - process_patterns (list of regex patterns)
+                - description: String description of the workload
+                - process_patterns: List of regex patterns to match processes
+                - fallback_thresholds: Dict with thresholds (cpu_percent, memory_percent, io_bytes_per_second, etc.)
 
         Returns:
             (success, message)
@@ -327,14 +331,22 @@ class ConfigurationManager:
                 return False, f"Workload '{workload_name}' already exists. Use update_workload_pattern instead."
 
             # Validate required fields
-            if 'description' not in workload_config or 'process_patterns' not in workload_config:
-                return False, "Missing required fields: 'description' and 'process_patterns'"
+            if 'description' not in workload_config:
+                return False, "Missing required field: 'description'"
+            if 'process_patterns' not in workload_config:
+                return False, "Missing required field: 'process_patterns'"
+            if 'fallback_thresholds' not in workload_config:
+                return False, "Missing required field: 'fallback_thresholds'"
+
+            # Build the new workload pattern
+            new_pattern = {
+                'description': workload_config['description'],
+                'process_patterns': workload_config['process_patterns'],
+                'fallback_thresholds': workload_config['fallback_thresholds']
+            }
 
             # Add workload pattern
-            config['patterns'][workload_name] = {
-                'description': workload_config['description'],
-                'process_patterns': workload_config['process_patterns']
-            }
+            config['patterns'][workload_name] = new_pattern
 
             # Write updated configuration
             with open(self.workload_patterns_file, 'w', encoding='utf-8') as f:
@@ -372,33 +384,57 @@ class ConfigurationManager:
 
             # Load current configuration
             with open(self.workload_patterns_file, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
+                config = yaml.safe_load(f) or {'patterns': {}}
 
             # Check if workload exists
             if workload_name not in config['patterns']:
                 return False, f"Workload '{workload_name}' not found. Use add_workload_pattern to create it."
 
-            # Update fields
+            # Keep a snapshot of previous config for change log
+            previous_config = dict(config['patterns'][workload_name])
+
+            # Allowed well-known fields
             for field, value in updates.items():
-                config['patterns'][workload_name][field] = value
+                if field == 'description':
+                    config['patterns'][workload_name]['description'] = str(
+                        value)
+
+                elif field == 'process_patterns':
+                    if not isinstance(value, list):
+                        return False, "Field 'process_patterns' must be a list"
+                    config['patterns'][workload_name]['process_patterns'] = value
+
+                elif field == 'fallback_thresholds':
+                    if not isinstance(value, dict):
+                        return False, "Field 'fallback_thresholds' must be a dict"
+                    # Merge with existing thresholds (so updates can be partial)
+                    existing = config['patterns'][workload_name].get(
+                        'fallback_thresholds', {})
+                    existing.update(value)
+                    config['patterns'][workload_name]['fallback_thresholds'] = existing
+
+                else:
+                    # For any other custom fields, apply directly
+                    config['patterns'][workload_name][field] = value
 
             # Write updated configuration
             with open(self.workload_patterns_file, 'w', encoding='utf-8') as f:
                 yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
-            # Log the change
+            # Log the change with previous and applied updates
             self.change_log.append({
                 'timestamp': datetime.now().isoformat(),
                 'action': 'update_workload',
                 'workload': workload_name,
+                'previous': previous_config,
                 'updates': updates
             })
 
-            logger.info(f"✅ Updated workload pattern: {workload_name}")
+            logger.info('✅ Updated workload pattern: %s', workload_name)
             return True, f"Successfully updated workload: {workload_name}"
 
         except Exception as e:
-            logger.error(f"Failed to update workload pattern: {e}")
+            logger.error('Failed to update workload pattern: %s', e)
             return False, f"Error: {str(e)}"
 
     def delete_workload_pattern(self, workload_name: str) -> Tuple[bool, str]:
@@ -462,10 +498,10 @@ class ConfigurationManager:
         """
         try:
             kernel_interface = KernelParameterInterface()
-            
+
             # Apply the parameter
             success = kernel_interface.set_parameter(param_name, value)
-            
+
             if success:
                 logger.info(f"✅ Applied {param_name} = {value} to system")
                 return True, f"Successfully applied {param_name} = {value}"
@@ -496,13 +532,14 @@ class ConfigurationManager:
         try:
             # Reload optimization profiles and update CentralDataStore
             profiles = self.config_loader.load_optimization_profiles()
-            
+
             # Update CentralDataStore with new optimization profiles
             data_store = get_data_store()
             data_store.set_optimization_profiles(profiles)
-            
+
             reload_status['optimization_profiles'] = True
-            logger.info(f"✅ Reloaded optimization profiles into CentralDataStore: {list(profiles.keys())}")
+            logger.info(
+                f"✅ Reloaded optimization profiles into CentralDataStore: {list(profiles.keys())}")
         except Exception as e:
             logger.error(f"Failed to reload optimization profiles: {e}")
             reload_status['optimization_profiles'] = False
@@ -525,34 +562,34 @@ class ConfigurationManager:
     def update_optimization_profile(self, profile_name: str, updates: Dict[str, Any]) -> Tuple[bool, str]:
         """
         Update an existing optimization profile
-        
+
         Args:
             profile_name: Name of profile to update
             updates: Dictionary of fields to update
-            
+
         Returns:
             (success, message)
         """
         try:
             # Create backup first
             self.create_backup('optimization_profiles')
-            
+
             # Load configuration file
             with open(self.optimization_profiles_file, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f) or {'profiles': {}}
-            
+
             # Check if profile exists
             if profile_name not in config['profiles']:
                 return False, f"Profile '{profile_name}' not found. Use add_new_optimization_profile to create it."
-            
+
             # Update fields
             for field, value in updates.items():
                 config['profiles'][profile_name][field] = value
-            
+
             # Write updated configuration
             with open(self.optimization_profiles_file, 'w', encoding='utf-8') as f:
                 yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-            
+
             # Log the change
             self.change_log.append({
                 'timestamp': datetime.now().isoformat(),
@@ -560,43 +597,43 @@ class ConfigurationManager:
                 'profile': profile_name,
                 'updates': updates
             })
-            
+
             logger.info(f"✅ Updated optimization profile: {profile_name}")
-            print(f"✅ Updated optimization profile: {profile_name}")
             return True, f"Successfully updated profile: {profile_name}"
 
         except Exception as e:
             logger.error(f"Failed to update optimization profile: {e}")
             return False, f"Error: {str(e)}"
+
     def delete_optimization_profile(self, profile_name: str) -> Tuple[bool, str]:
         """
         Delete an optimization profile
-        
+
         Args:
             profile_name: Name of profile to delete
-            
+
         Returns:
             (success, message)
         """
         try:
             # Create backup first
             self.create_backup('optimization_profiles')
-            
+
             # Load configuration file
             with open(self.optimization_profiles_file, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f) or {'profiles': {}}
-            
+
             # Check if profile exists
             if profile_name not in config['profiles']:
                 return False, f"Profile '{profile_name}' not found."
-            
+
             # Delete the profile
             deleted_config = config['profiles'].pop(profile_name)
-            
+
             # Write updated configuration
             with open(self.optimization_profiles_file, 'w', encoding='utf-8') as f:
                 yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-            
+
             # Log the change
             self.change_log.append({
                 'timestamp': datetime.now().isoformat(),
@@ -604,30 +641,22 @@ class ConfigurationManager:
                 'profile': profile_name,
                 'deleted_config': deleted_config
             })
-            
+
             logger.info(f"✅ Deleted optimization profile: {profile_name}")
-            print(f"✅ Deleted optimization profile: {profile_name}")
             return True, f"Successfully deleted profile: {profile_name}"
 
         except Exception as e:
             logger.error(f"Failed to delete optimization profile: {e}")
             return False, f"Error: {str(e)}"
-    def add_new_optimization_profile(self, profile_name: str, profile_config: Dict[str, Any]) -> Tuple[bool, str]:
+
+    def add_new_optimization_profile(self, profile_name: str, profile_config: Dict[str, Any], auto_calculate_budgets: bool = True ) -> Tuple[bool, str]:
         """
-        Add a new optimization profile
+        Add a new optimization profile with optional auto-budget calculation
         
         Args:
-            profile_name: Name of the new profile
-            profile_config: Profile configuration dict with keys:
-                - workload_type
-                - strategy
-                - evaluation_budget
-                - time_budget
-                - parameter_bounds
-                - performance_weights
-                
-        Returns:
-            (success, message)
+            profile_name: Profile identifier
+            profile_config: Configuration dict
+            auto_calculate_budgets: If True, automatically calculate budgets (default: True)
         """
         try:
             # Create backup first
@@ -642,10 +671,28 @@ class ConfigurationManager:
                 return False, f"Profile '{profile_name}' already exists. Use update_optimization_profile to modify it."
             
             # Validate required fields
-            required_fields = ['workload_type', 'strategy', 'evaluation_budget', 'time_budget', 'parameter_bounds', 'performance_weights']
-            for field in required_fields:
+            required = ['workload_type', 'strategy', 'parameter_bounds', 'performance_weights']
+            for field in required:
                 if field not in profile_config:
-                    return False, f"Missing required field: {field}"
+                    return False, f"Missing required field: '{field}'"
+            
+            # AUTO-CALCULATE BUDGETS if not provided or auto_calculate=True
+            if auto_calculate_budgets or ('evaluation_budget' not in profile_config):
+                param_count = len(profile_config['parameter_bounds'])
+                strategy = profile_config['strategy']
+                
+                calc = BudgetCalculator()
+                eval_budget, time_budget = calc.calculate_budgets(strategy, param_count)
+                
+                # Set calculated budgets
+                profile_config['evaluation_budget'] = eval_budget
+                profile_config['time_budget'] = time_budget
+                
+                logger.info(
+                    f"📊 Auto-calculated budgets for '{profile_name}': "
+                    f"eval={eval_budget}, time={time_budget}s "
+                    f"(strategy={strategy}, params={param_count})"
+                )
             
             # Add new optimization profile
             config['profiles'][profile_name] = {
@@ -670,11 +717,12 @@ class ConfigurationManager:
             })
             
             logger.info(f"✅ Added optimization profile: {profile_name}")
-            print(f"✅ Added optimization profile: {profile_name}")
             return True, f"Successfully added profile: {profile_name}"
 
         except Exception as e:
             logger.error(f"Failed to add new optimization profile: {e}")
+            import traceback
+            traceback.print_exc()
             return False, f"Error: {str(e)}"
 
     # =========================================================================
@@ -698,8 +746,6 @@ class ConfigurationManager:
         Returns:
             Results dictionary with success/failure for each operation
         """
-        print("❤️❤️❤️❤️")
-        print(updates)
         results = {
             'timestamp': datetime.now().isoformat(),
             'total_operations': 0,
@@ -711,7 +757,8 @@ class ConfigurationManager:
         # Add new parameters
         for param_update in updates.get('add_parameters', []):
             results['total_operations'] += 1
-            success, message = self.add_kernel_parameter(param_update['name'], param_update['config'])
+            success, message = self.add_kernel_parameter(
+                param_update['name'], param_update['config'])
             results['details'].append({
                 'operation': 'add_parameter',
                 'name': param_update['name'],
@@ -726,7 +773,8 @@ class ConfigurationManager:
         # Update existing parameters
         for param_update in updates.get('update_parameters', []):
             results['total_operations'] += 1
-            success, message = self.update_kernel_parameter(param_update['name'], param_update['updates'])
+            success, message = self.update_kernel_parameter(
+                param_update['name'], param_update['updates'])
             results['details'].append({
                 'operation': 'update_parameter',
                 'name': param_update['name'],
@@ -741,7 +789,8 @@ class ConfigurationManager:
         # Add new workloads
         for workload_update in updates.get('add_workloads', []):
             results['total_operations'] += 1
-            success, message = self.add_workload_pattern(workload_update['name'], workload_update['config'])
+            success, message = self.add_workload_pattern(
+                workload_update['name'], workload_update['config'])
             results['details'].append({
                 'operation': 'add_workload',
                 'name': workload_update['name'],
@@ -756,10 +805,63 @@ class ConfigurationManager:
         # Update existing workloads
         for workload_update in updates.get('update_workloads', []):
             results['total_operations'] += 1
-            success, message = self.update_workload_pattern(workload_update['name'], workload_update['updates'])
+            success, message = self.update_workload_pattern(
+                workload_update['name'], workload_update['updates'])
             results['details'].append({
                 'operation': 'update_workload',
                 'name': workload_update['name'],
+                'success': success,
+                'message': message
+            })
+            if success:
+                results['successful'] += 1
+            else:
+                results['failed'] += 1
+
+        # Add new optimization profiles
+        for profile_update in updates.get('add_optimization_profiles', []):
+            results['total_operations'] += 1
+            # Check if auto-calculate budgets (default: True)
+            auto_budgets = profile_update.get('auto_calculate_budgets', True)
+            success, message = self.add_new_optimization_profile(
+                profile_update['name'], 
+                profile_update['config'],
+                auto_calculate_budgets=auto_budgets
+            )
+            results['details'].append({
+                'operation': 'add_optimization_profile',
+                'name': profile_update['name'],
+                'success': success,
+                'message': message
+            })
+            if success:
+                results['successful'] += 1
+            else:
+                results['failed'] += 1
+
+        # Update existing optimization profiles
+        for profile_update in updates.get('update_optimization_profiles', []):
+            results['total_operations'] += 1
+            success, message = self.update_optimization_profile(
+                profile_update['name'], profile_update['updates'])
+            results['details'].append({
+                'operation': 'update_optimization_profile',
+                'name': profile_update['name'],
+                'success': success,
+                'message': message
+            })
+            if success:
+                results['successful'] += 1
+            else:
+                results['failed'] += 1
+
+        # Delete optimization profiles
+        for profile_update in updates.get('delete_optimization_profiles', []):
+            results['total_operations'] += 1
+            success, message = self.delete_optimization_profile(profile_update['name'])
+            results['details'].append({
+                'operation': 'delete_optimization_profile',
+                'name': profile_update['name'],
                 'success': success,
                 'message': message
             })
@@ -790,7 +892,8 @@ class ConfigurationManager:
         reload_status = self.reload_configurations()
         results['reload_status'] = reload_status
 
-        logger.info(f"Batch update completed: {results['successful']}/{results['total_operations']} successful")
+        logger.info(
+            f"Batch update completed: {results['successful']}/{results['total_operations']} successful")
         return results
 
     # =========================================================================
@@ -824,8 +927,78 @@ class ConfigurationManager:
         except Exception as e:
             logger.error(f"Failed to load workload patterns: {e}")
             configs['workload_patterns'] = {}
-
+        try:
+            with open(self.optimization_profiles_file, 'r', encoding='utf-8') as f:
+                configs['optimization_profiles'] = yaml.safe_load(f)
+        except Exception as e:
+            logger.error(f"Failed to load optimization profiles: {e}")
+            configs['optimization_profiles'] = {}
         return configs
+
+    # =========================================================================
+    # VALIDATION LAYER (Phase 2)
+    # =========================================================================
+
+    def validate_configurations(self) -> Dict[str, Any]:
+        """
+        Validate all configurations for referential integrity
+        Uses LoadConfigs validation methods
+
+        Returns:
+            Validation results with errors and warnings
+        """
+        return self.config_loader.validate_all_configs()
+
+    def validate_before_update(self, update_type: str, name: str, data: Dict) -> tuple[bool, str]:
+        """
+        Validate a single update before applying it
+
+        Args:
+            update_type: Type of update ('parameter', 'workload', 'profile', 'priority')
+            name: Name of the item being updated
+            data: Data for the update
+
+        Returns:
+            (is_valid, error_message)
+        """
+        try:
+            # Load current configs
+            kernel_params = yaml.safe_load(
+                open(self.kernel_params_file, 'r', encoding='utf-8'))
+            workload_patterns = yaml.safe_load(
+                open(self.workload_patterns_file, 'r', encoding='utf-8'))
+
+            if update_type == 'profile':
+                is_valid, errors = self.config_loader.validate_optimization_profile(
+                    name, data, kernel_params, workload_patterns
+                )
+                return (is_valid, '; '.join(errors) if errors else '')
+
+            elif update_type == 'priority':
+                is_valid, errors = self.config_loader.validate_process_priority(
+                    name, data, workload_patterns
+                )
+                return (is_valid, '; '.join(errors) if errors else '')
+
+            elif update_type == 'workload':
+                # Basic validation for workload patterns
+                if 'process_patterns' not in data:
+                    return (False, "Workload pattern must have 'process_patterns' field")
+                return (True, '')
+
+            elif update_type == 'parameter':
+                # Basic validation for kernel parameters
+                required_fields = ['default_value',
+                                   'description', 'subsystem', 'writable']
+                missing = [f for f in required_fields if f not in data]
+                if missing:
+                    return (False, f"Missing required fields: {missing}")
+                return (True, '')
+
+            return (True, '')
+
+        except Exception as e:
+            return (False, f"Validation error: {str(e)}")
 
 
 # Singleton instance
@@ -838,5 +1011,3 @@ def get_config_manager() -> ConfigurationManager:
     if _config_manager_instance is None:
         _config_manager_instance = ConfigurationManager()
     return _config_manager_instance
-
-
